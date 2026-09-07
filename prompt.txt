@@ -1,0 +1,122 @@
+Use planning mode. Act as a Principal Full-Stack Autonomous Architect using the Claude 3.7 Sonnet Thinking model to design, architect, and implement a modern, responsive digital advertising agency website named "digivideas" with a complete WordPress-like administrative dashboard.
+
+### Brand Identity & Narrative Setup
+- **Brand Name:** digivideas (Etymology: `digi` [digital] + `ivi` [Laz language: "to leave a trace/mark"] + `ideas` [ideas])
+- **Slogan:** "Teknoloji ve yaratıcılığı harmanlayarak, markanızın dijital platformlarda öne çıkmasını sağlıyoruz. İhtiyaçlarınıza özel çözümlerle, markanızın dijital yolculuğunu başarıyla yönetiyoruz."
+- **Core Narrative Copy (Integrate Turkish copy explicitly):**
+  - **Biz Kimiz?:** "Dijital reklamcılık alanında yenilikçi ve etkili çözümler sunan bir firmayız. Amacımız, markaların dijital dünyada güçlü bir varlık oluşturmasına yardımcı olmaktır. Uzman ekibimizle birlikte, kreatif stratejiler geliştirerek hedef kitlenize en doğru mesajları ulaştırıyoruz. Teknoloji ve yaratıcılığı harmanlayarak, markanızın dijital platformlarda öne çıkmasını sağlıyoruz. İhtiyaçlarınıza özel çözümlerle, markanızın dijital yolculuğunu başarıyla yönetiyoruz."
+  - **Nasıl Başladı?:** "Digivideas, İzmir'de kurulan ve başlangıçta sadece freelance işler alan bir dijital reklamcılık firması olarak yola çıktı. Mühendis olan kurucumuzun vizyonu ve azmi sayesinde, kısa sürede daha sistematik ve organize bir yapıya kavuştu. İlk günlerden itibaren teknolojiye ve yeniliklere olan tutkumuz, bizi sektörde öne çıkaran en büyük gücümüz oldu. Bu süreçte, yaratıcı çözümler ve müşteri odaklı yaklaşımımızla büyümeye devam ederek, bugünlere geldik."
+  - **Misyonumuz:** "Digivideas olarak, markaların dijital dünyada etkili ve kalıcı bir varlık oluşturmasını sağlamak için çalışıyoruz. Teknoloji ve yaratıcılığı bir araya getirerek, müşterilerimize özgün ve stratejik çözümler sunuyoruz. Amacımız, her bir müşterimizin hedeflerine ulaşmasına katkıda bulunmak, dijital platformlarda güçlü ve sürdürülebilir bir etkileşim kurmalarını sağlamaktır. Sürekli gelişen dijital ekosistemde, yenilikçi yaklaşımlarımızla fark yaratmayı ve müşterilerimizin beklentilerini aşmayı misyon edindik."
+  - **Vizyonumuz:** "Dijital reklamcılık alanında yenilikçi ve lider bir firma olmayı hedefliyoruz. Vizyonumuz, teknolojik gelişmeleri yakından takip ederek müşterilerimize en ileri düzeyde çözümler sunmak ve sektörümüzde öncü bir rol oynamaktır. Küresel ölçekte tanınan ve güvenilen bir marka olma yolunda, yaratıcılığımızı ve profesyonelliğimizi sürekli geliştiriyoruz. Müşterilerimizin başarısına katkıda bulunarak, dijital dünyada sürdürülebilir büyüme ve etki yaratmayı amaçlıyoruz."
+
+---
+
+### Design System, Color Palette & UI Layout
+- **Color Tokens:**
+  - Primary Base Accent: Warm Vibrant Orange (`#F97316` / `#EA580C`)
+  - Accent Details: Deep muted dark purple accents, minimal black (`#09090B`), clean white (`#FFFFFF`), and subtle cyan/blue highlights.
+- **Header & Navigation Layout:**
+  - **Vertical Sidebar Menu:** Positioned fixed on the **Left side**.
+  - **Top Navigation Bar:**
+    - **Center:** Main `digivideas` logo acting as an interactive home button.
+    - **Top Right:** Social media icon links routing directly to Facebook and Instagram.
+
+---
+
+### Interactive 3D Smartphone Display Mechanics (Hero Section)
+- **Smartphone Bezels:** Render 3 custom smartphone frames designed with modern **iPhone 17 style thin screen bezels**.
+- **Initial Layout State:** 
+  - 1 main vertical phone positioned upfront in the center.
+  - 2 secondary background phones rotated at a **30-degree angle** behind the center phone (one tilted left, one tilted right).
+- **Click-to-Swap Interactive Animation:**
+  - The 3-phone showcase must be **fully interactive**. Clicking on any background phone triggers a smooth 3D position swap transition (`Framer Motion` or CSS 3D transforms).
+  - The clicked side phone smoothly rotates to `0deg`, scales up, and moves to the foreground center.
+  - The previously centered phone scales down slightly and rotates to `-30deg` or `+30deg`, sliding into the background slot of the clicked phone.
+  - Screen contents inside the phones represent active agency Instagram portfolio showcases/posts.
+
+---
+
+### Additional Micro-Interactions & FX (Custom Polish)
+1. **Hero Text Unblur Effect:** Text on the left of the Hero section is blurred by default (`filter: blur(8px)`). Hovering mouse over a line smoothly unblurs it (`filter: blur(0)`), and leaving mouse resurrects the blur effect (`transition: all 0.4s ease`).
+2. **Magnetic Social Links:** Top-right social media icons feature a subtle magnetic pull hover animation towards the cursor.
+3. **Cursor Spotlight Effect:** Add a subtle background radial gradient that tracks mouse movements across the hero container.
+4. **Modular Asset Containers:** Service section items include structured asset upload placeholders enabling easy binding of custom images/media files from local storage.
+
+---
+
+### Dynamic Page Architecture & Routes
+Public agency pages map to separate routes:
+1. **Hakkımızda** (`/about`)
+2. **Hizmetlerimiz** (`/services` and dynamic sub-routes e.g., `/services/sosyal-medya`)
+3. **Müşterilerimiz** (`/customers` and dynamic detail sub-routes e.g., `/customers/laoscafe`)
+4. **Blog** (`/blog` and dynamic post sub-routes e.g., `/blog/dijital-pazarlama-2026`)
+5. **İletişim** (`/contact`)
+
+---
+
+### WordPress-Style Administrative Dashboard (`/dashboard/admin/digivideas`)
+- **Strict Route Mapping:** Dashboard MUST be accessible exclusively via `url/dashboard/admin/digivideas`.
+- **CMS Operations:**
+  - Fully functional CMS module to create, read, update, draft, and delete entries for **Hizmetlerimiz**, **Müşterilerimiz**, and **Blog**.
+  - **Automated Dynamic Route Generator:** Adding a new item in the admin panel (e.g. creating client "Laos Cafe" under Müşterilerimiz) MUST automatically generate and bind the live public URL (`url/customers/laoscafe`).
+  - Architecture must be robust, simple, zero-bug, and fully error-handled.
+
+---
+
+### Execution Plan for Claude 3.7 Sonnet Thinking Model
+1. **Planning Mode Activation:** Generate a detailed Implementation Plan artifact outlining component architecture, state logic for the 3D phone swap, dynamic routing schema, and Tailwind color tokens before generating code.
+2. **Project Setup:** Scaffold Next.js (App Router, TypeScript) with Tailwind CSS, Framer Motion (or Lucide + CSS transitions), and clean state stores.
+3. **Interactive Hero Component:** Implement the mouse-hover unblur text mechanism, dynamic spotlight, magnetic top links, and the 3D click-to-center interactive iPhone 17 showcase.
+4. **CMS & Dynamic Routing:** Build the administrative backend at `/dashboard/admin/digivideas` with live dynamic route generation (`/customers/[slug]`, `/services/[slug]`, `/blog/[slug]`).
+5. **Code Quality:** Ensure zero build errors, fluid 60fps animations, responsive adaptations, and clean Turkish copy integration.
+
+
+
+
+
+
+
+
+
+IKINCI PROMPT
+
+Use planning mode. Refine and update the implementation of the "digivideas" agency website hero section and administrative authentication flow by building upon the previously established core architecture and narrative. Update the Implementation Plan artifact accordingly before generating or executing code changes.
+
+### Administrative Access Control & Password Authentication
+- **Strict Admin Route Protection (`url/dashboard/admin/digivideas`):**
+  - Implement an authentication barrier/modal guard before granting access to the WordPress-style admin panel.
+  - Require a secure passcode input field.
+  - **Hardcoded Authentication Passcode:** Strictly validate the entered passcode against:
+    `MuazDigivideas285561.`
+  - **Auth Logic & State Handling:**
+    - If the user enters the correct passcode (`MuazDigivideas285561.`), store an authenticated session token/cookie (`digivideas_admin_session`) and grant full access to the CMS dashboard.
+    - If the entered passcode is incorrect, render a clean error badge ("Geçersiz Yönetici Şifresi") and deny access.
+    - Include a "Çıkış Yap" (Log Out) button inside the admin header to revoke the session token cleanly.
+
+---
+
+### Interactive 3D Smartphone Display Mechanics (Hero Section Extension)
+- **3D iPhone 17 Frame Components:** Render 3 custom smartphone mockup components with thin iPhone 17 style display bezels.
+- **Dynamic 3D Position State Management:**
+  - **Active Central Position:** 1 foreground vertical smartphone tilted at `0deg`, scaled to `1.0`, with prominent shadow elevation.
+  - **Background Flanking Positions:** 2 secondary background smartphones rotated at a `-30deg` (Left) and `+30deg` (Right) angle, scaled down to `0.85`, positioned behind the center card layer.
+- **Interactive Click-to-Center Swap Logic:**
+  - Make the 3D phone arrangement **fully interactive**.
+  - Clicking on either the Left or Right background phone triggers an immediate, smooth 3D position swap transition using fluid physics animation (`Framer Motion` spring or optimized CSS 3D transforms).
+  - The clicked side phone smoothly swivels to `0deg`, scales up to `1.0`, elevates its z-index, and glides into the center position.
+  - The previously active center phone simultaneously scales down, applies a backdrop blur blur-out, rotates to `-30deg` or `+30deg`, and slides smoothly into the background position previously occupied by the clicked phone.
+  - Screen containers retain dynamic asset placement slots designed to showcase agency Instagram portfolio posts/work samples.
+
+---
+
+### Additional UI/UX Micro-Interactions & Visual FX
+- **Magnetic Header Elements:** Apply subtle cursor magnetic pull effects to the top-right Facebook and Instagram social media icons on mouse hover.
+- **Dynamic Hero Cursor Light Engine:** Add a subtle radial glowing backdrop/spotlight effect that seamlessly follows cursor movements within the Hero section container.
+- **Line Blur/Unblur Trigger:** Maintain the default `filter: blur(8px)` state on the left hero text, smoothly transitioning to `blur(0)` on cursor hover, and restoring default blur on cursor exit.
+
+---
+
+### Execution Instructions for Claude 3.7 Sonnet Thinking Model
+1. **Planning Mode Update:** First, output an updated Implementation Plan artifact detailing the password verification handler (`MuazDigivideas285561.`), session state logic, and the Framer Motion / CSS 3D transform state hooks for the phone position swap algorithm.
+2. **Execute Refactoring:** Refactor the Hero section component to include interactive 3D phone swaps and magnetic wrappers. Secure the `/dashboard/admin/digivideas` route with the designated password lock.
+3. **Autonomous Verification:** Verify smooth 60fps swap animations when clicking side phones, zero layout shifts, proper rotation angles (`30deg`), clean asset bindings, and seamless admin login using `MuazDigivideas285561.`.
