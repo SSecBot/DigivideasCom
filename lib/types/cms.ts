@@ -127,5 +127,35 @@ export interface ContactInquiry {
   service: string;
   message: string;
   createdAt: string;
+  deletedAt?: string; // Soft-delete marker; deleted inquiries are hidden but retained
 }
+
+// Kendi reklamlarımız (ana sayfadaki "Reklamlarımız" alanı)
+export interface PromoItem {
+  id: string;
+  brand: string;
+  title: string;
+  description: string;
+  url: string;
+  ctaText: string;
+  badge?: string;
+  imageUrl?: string;
+  highlights: string[];
+  status: ContentStatus;
+  order: number;
+  updatedAt: string;
+}
+
+// Full CMS snapshot persisted on the server
+export interface ContentSnapshot {
+  services: ServiceItem[];
+  customers: CustomerItem[];
+  blogPosts: BlogPost[];
+  tags: TagItem[];
+  faqs: FAQItem[];
+  promos: PromoItem[];
+  narrative: SiteNarrative;
+}
+
+export type ContentCollection = Exclude<keyof ContentSnapshot, "narrative">;
 

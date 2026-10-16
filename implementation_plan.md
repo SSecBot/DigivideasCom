@@ -15,7 +15,7 @@
 
 ### 3. Gizli Yönetici Girişi ve WordPress Tarzı Dashboard
 - [x] Genel sitedeki tüm admin buton ve bağlantıları kaldırıldı (Gizli erişim: `/dashboard/admin/digivideas`).
-- [x] Güvenlik şifresi: `MuazDigivideas285561.`
+- [x] Güvenlik şifresi: `.env.local` içindeki `ADMIN_PASSCODE` değeri
 - [x] Granüler CMS paneline SSS yönetimi, 3D Telefon Vitrini editörü, Hizmet/Müşteri/Blog düzenleyicileri ve Site Ayarları eklendi.
 
 ### 4. Türkçe Dokümantasyon

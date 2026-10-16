@@ -26,7 +26,7 @@
 ### 3. 🔒 Gizli Yönetici Girişi & WordPress Tarzı CMS Dashboard
 - **Sıfır Halka Açık Link:** Genel web sitesinde (Navbar, Sidebar, Footer vb.) yönetici paneline giden hiçbir buton, link veya gösterge bulunmamaktadır.
 - **Doğrudan URL:** `url/dashboard/admin/digivideas`
-- **Güvenlik Şifresi:** `MuazDigivideas285561.`
+- **Güvenlik Şifresi:** `.env.local` içindeki `ADMIN_PASSCODE` değeri
 - **Granüler Yönetim Sekmeleri:**
   1. **Genel Bakış (Overview):** Canlı istatistikler ve hızlı erişim kartları.
   2. **Hizmetlerimiz:** Başlık, kategori, slug, görsel, video URL, özet, detaylı Markdown içerik, özellikler ve çıktı yönetimi.

@@ -140,3 +140,10 @@
 .animate-grid-glow {
   animation: grid-glow 6s ease-in-out infinite;
 }
+/* Hide scrollbars on horizontally scrolling chip/tab rows while keeping them scrollable */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

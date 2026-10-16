@@ -141,6 +141,10 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        # Ziyaretçinin gerçek IP'si (giriş hız sınırı için). Gelen başlığı ezer, sahteciliği engeller.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
     }
 }
@@ -158,22 +162,46 @@ sudo certbot --nginx -d digivideas.com -d www.digivideas.com
 
 ---
 
-## 🔒 5. Canlı Ortamda Yönetim Paneli Güvenliği
+## 🔒 5. Ortam Değişkenleri, Veri Klasörü ve Yönetim Paneli Güvenliği
 
-- Sitenin gizli yönetim paneli adresi: `https://alanadiniz.com/dashboard/admin/digivideas`
-- Varsayılan Giriş Şifresi: `MuazDigivideas285561.`
-- Bu şifre ve oturum mekanizması, istemci tarafında güvenli tarayıcı oturumu (`sessionStorage`) ile korunmaktadır.
+### ⚠️ Önemli: Site artık sunucuda veri saklıyor
+Yönetim panelinde yapılan içerik değişiklikleri, iletişim formu talepleri, site analizi (ziyaretçi istatistikleri),
+müşteri adayları ve yüklenen görseller sunucudaki **`data/`** klasörüne (veya `DATA_DIR` ile belirttiğiniz klasöre) yazılır.
+
+- Bu yüzden site **kalıcı diski olan** bir sunucuda çalışmalıdır: **VPS (Yöntem 3)** veya **Node.js destekli cPanel**.
+- **Vercel / Netlify gibi serverless platformlarda dosya sistemi kalıcı değildir**; paneldeki değişiklikler ve analiz verileri kaybolur.
+  Vercel kullanılacaksa önce veri katmanının PostgreSQL'e taşınması gerekir (repository katmanı buna hazırdır).
+- `data/` klasörünü düzenli yedekleyin (ör. günlük `tar czf yedek-$(date +%F).tgz data/`).
+- Yayındaki sitenin yalnızca **tek bir Node süreci** ile çalıştırılması önerilir (`pm2 start npm --name digivideas -- start`).
+
+### Gerekli ortam değişkenleri (`.env.local`)
+`.env.example` dosyasını `.env.local` olarak kopyalayıp doldurun:
+
+| Değişken | Açıklama |
+|---|---|
+| `NEXT_PUBLIC_SITE_URL` | Canlı adres, ör. `https://digivideas.com` (canonical, sitemap ve paylaşım görselleri için). **Build öncesi** ayarlanmalı. |
+| `ADMIN_PASSCODE` | Yönetim paneli şifresi. Sadece sunucuda kullanılır; asla `NEXT_PUBLIC_` ile başlatmayın. |
+| `ADMIN_SESSION_SECRET` | En az 32 karakterlik rastgele dize. Üretmek için: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
+| `DATA_DIR` | (Opsiyonel) Veri klasörü yolu. Boşsa proje içindeki `data/` kullanılır. |
+| `GOOGLE_MAPS_API_KEY` | Müşteri Bulucu için Google **Places API (New)** anahtarı. Google Cloud Console'da anahtarı yalnızca bu API ile ve sunucu IP'niz ile sınırlandırın. |
+| `GOOGLE_SITE_VERIFICATION` | (Opsiyonel) Google Search Console doğrulama kodu. |
+| `ANALYTICS_RETENTION_DAYS` | (Opsiyonel) Analiz verisinin saklanacağı gün sayısı (varsayılan 400). |
+
+### Yönetim paneli
+- Adres: `https://alanadiniz.com/dashboard/admin/digivideas` (arama motorlarına kapalıdır).
+- Şifre sunucuda doğrulanır; oturum, JavaScript'in okuyamadığı imzalı bir `httpOnly` çerezde 12 saat tutulur.
+- 15 dakikada 5 hatalı denemeden sonra giriş geçici olarak kilitlenir.
 
 ---
 
 ## ❓ 6. Sıkça Sorulan Sorular (SSS)
 
 ### S: En ucuz ve en sorunsuz yöntem hangisidir?
-**C:** Kesinlikle **Vercel** yöntemidir. Başlangıç paketi tamamen **ücretsizdir**, SSL otomatik tanımlanır, sunucu çökmesi veya bakım derdi yoktur.
+**C:** Site artık verilerini sunucuda sakladığı için kalıcı diski olan bir **VPS** (Yöntem 3) veya **Node.js destekli cPanel** önerilir. Vercel ancak veri katmanı bir veritabanına taşındıktan sonra kullanılabilir (bkz. Bölüm 5).
 
 ### S: Sitede yeni bir müşteri hikayesi veya hizmet eklediğimde sunucuyu yeniden başlatmam gerekir mi?
-**C:** Hayır! Yönetim paneli üzerinden (`/dashboard/admin/digivideas`) eklediğiniz veya düzenlediğiniz tüm içerikler tarayıcıda anında ve dinamik olarak güncellenir.
+**C:** Hayır! Yönetim paneli üzerinden (`/dashboard/admin/digivideas`) eklediğiniz veya düzenlediğiniz içerikler sunucuya kaydedilir ve tüm ziyaretçiler için anında yayına girer.
 
 ### S: Kaynak kodlarda güncelleme yaptığımda canlı siteye nasıl yansır?
 - **Vercel kullanıyorsanız:** GitHub'a kod yüklediğiniz an 30 saniye içinde otomatik olarak canlıya geçer (Sıfır kesinti).
-- **VPS kullanıyorsanız:** Sunucuda `git pull && npm run build && pm2 restart digivideas` komutunu çalıştırmanız yeterlidir.
+- **VPS kullanıyorsanız:** Sunucuda `git pull && pnpm install && pnpm build && pm2 restart digivideas` komutunu çalıştırmanız yeterlidir (`data/` klasörü korunur).

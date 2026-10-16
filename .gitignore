@@ -27,3 +27,6 @@ pnpm-debug.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Runtime data (CMS content, inquiries, analytics, leads, uploads)
+/data/

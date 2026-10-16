@@ -51,7 +51,7 @@ Sistem genelinde katı bir **3-Renk Token Mimarisi (Sıfır Lacivert / Koyu Mavi
 Yönetim paneline erişim tamamen gizlidir; sitede herhangi bir "Giriş" butonu veya bağlantısı yer almaz.
 
 - **Erişim Adresi:** `/dashboard/admin/digivideas`
-- **Yönetici Giriş Şifresi (Passcode):** `MuazDigivideas285561.`
+- **Yönetici Giriş Şifresi (Passcode):** `.env.local` içindeki `ADMIN_PASSCODE` değeri
 
 ### Yönetim Paneli Yetenekleri:
 1. **Genel Bakış (Dashboard Overview):** Sistemdeki hizmet, müşteri, blog ve etiket sayılarını gösteren canlı kokpit.
