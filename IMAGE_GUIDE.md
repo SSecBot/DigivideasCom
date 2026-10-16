@@ -56,7 +56,7 @@ public/
 
 Müşteri vaka sayfalarında (`/customers/[slug]`) yer alan **Kampanya Görsel Galerisi**, CMS yönetim paneli üzerinden tamamen dinamik olarak yönetilir:
 
-1. `/dashboard/admin/digivideas` paneline `MuazDigivideas285561.` şifresi ile giriş yapın.
+1. `/dashboard/admin/digivideas` paneline `.env.local` içindeki `ADMIN_PASSCODE` değeri şifresi ile giriş yapın.
 2. **"Müşterilerimiz"** sekmesine tıklayın ve düzenlemek istediğiniz markanın yanındaki **"Düzenle"** butonuna basın.
 3. **Kampanya Görsel Galerisi (Campaign Media Gallery)** bölümünde:
    - **Yeni Görsel Yükle:** "Dosya Yükle" butonuna basarak bilgisayarınızdan doğrudan görsel yükleyin.

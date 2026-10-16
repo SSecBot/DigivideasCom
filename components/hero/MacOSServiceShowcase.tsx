@@ -65,13 +65,12 @@ export function MacOSServiceShowcase({ services }: MacOSServiceShowcaseProps) {
   const ActiveIcon = iconMap[activeService.iconName] || Sparkles;
 
   return (
-    <div className="w-full flex justify-center select-none overflow-hidden py-2">
-      {/* 
-        Responsive Proportional Scaling Container:
-        On mobile (< 768px), the entire window maintains its exact 2-column macOS structural layout
-        and titlebar dots without breaking into vertical stacks by scaling down proportionally.
+    <div className="w-full flex justify-center select-none py-2 min-w-0">
+      {/*
+        Responsive window: on phones the service list becomes a horizontally scrollable
+        chip row above the details (readable at full size instead of a scaled-down desktop window).
       */}
-      <div className="w-[680px] sm:w-[720px] md:w-full origin-top transform scale-[0.48] xs:scale-[0.58] sm:scale-[0.76] md:scale-100 transition-transform duration-300 flex-shrink-0">
+      <div className="w-full min-w-0">
         <div className="relative w-full">
           {/* Ambient background glow behind window */}
           <div className="absolute -inset-2 bg-gradient-to-r from-brand-500/25 via-brand-600/20 to-brand-400/20 rounded-3xl blur-2xl opacity-80 pointer-events-none" />
@@ -109,30 +108,30 @@ export function MacOSServiceShowcase({ services }: MacOSServiceShowcaseProps) {
               </div>
 
               {/* Title & App Name */}
-              <div className="flex items-center gap-2 text-xs font-mono text-zinc-300">
-                <Terminal className="w-3.5 h-3.5 text-brand-400" />
-                <span className="font-semibold text-white">digivideas OS</span>
-                <span className="text-zinc-500">•</span>
-                <span className="text-zinc-400">Hizmet Kokpiti (Canlı CMS)</span>
+              <div className="flex items-center gap-2 text-xs font-mono text-zinc-300 min-w-0">
+                <Terminal className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
+                <span className="font-semibold text-white whitespace-nowrap">digivideas OS</span>
+                <span className="hidden lg:inline text-zinc-500">•</span>
+                <span className="hidden lg:inline text-zinc-400 truncate">Hizmet Kokpiti (Canlı CMS)</span>
               </div>
 
               {/* Live Status Pill */}
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/30 text-[10px] font-mono text-brand-400">
+              <div className="hidden xs:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/30 text-[10px] font-mono text-brand-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
                 <span>Canlı Hizmetler</span>
               </div>
             </div>
 
             {/* macOS Window Main Body: Fixed 2-Column Desktop Grid Layout */}
-            <div className="grid grid-cols-12 min-h-[460px] lg:min-h-[500px]">
+            <div className="flex flex-col md:grid md:grid-cols-12 md:min-h-[460px] lg:min-h-[500px]">
               {/* Internal Left Sidebar: Service Nav Items (4 Cols) */}
-              <div className="col-span-5 sm:col-span-4 bg-slate-950/70 border-r border-white/10 p-3 space-y-1">
-                <div className="px-2 py-1.5 text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
+              <div className="md:col-span-4 bg-slate-950/70 border-b md:border-b-0 md:border-r border-white/10 p-2 md:p-3 md:space-y-1 min-w-0">
+                <div className="hidden md:flex px-2 py-1.5 text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider items-center justify-between">
                   <span>Hizmet Kataloğu</span>
                   <span className="text-brand-400 font-bold">{activeServicesList.length}</span>
                 </div>
 
-                <div className="space-y-1">
+                <div className="flex md:block gap-1.5 md:space-y-1 overflow-x-auto md:overflow-visible scrollbar-none" role="tablist" aria-label="Hizmetler">
                   {activeServicesList.map((service) => {
                     const SrvIcon = iconMap[service.iconName] || Sparkles;
                     const isActive = service.id === activeServiceId;
@@ -141,11 +140,13 @@ export function MacOSServiceShowcase({ services }: MacOSServiceShowcaseProps) {
                     return (
                       <button
                         key={service.id}
+                        role="tab"
+                        aria-selected={isActive}
                         onClick={() => {
                           setActiveServiceId(service.id);
                           setActiveTab("overview");
                         }}
-                        className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all duration-200 group relative ${
+                        className={`flex-shrink-0 md:w-full flex items-center justify-between gap-2 p-2.5 rounded-xl text-left transition-all duration-200 group relative ${
                           isActive
                             ? "bg-brand-500/20 border border-brand-500/40 text-white font-medium shadow-sm"
                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
@@ -161,7 +162,7 @@ export function MacOSServiceShowcase({ services }: MacOSServiceShowcaseProps) {
                           >
                             <SrvIcon className="w-3.5 h-3.5" />
                           </div>
-                          <span className="text-[11px] truncate font-medium">{displayTitle}</span>
+                          <span className="text-xs md:text-[11px] whitespace-nowrap md:truncate font-medium">{displayTitle}</span>
                         </div>
 
                         {isActive && (
@@ -176,7 +177,7 @@ export function MacOSServiceShowcase({ services }: MacOSServiceShowcaseProps) {
                 </div>
 
                 {/* Sidebar Info Tip */}
-                <div className="pt-4 px-1">
+                <div className="hidden md:block pt-4 px-1">
                   <div className="p-2 rounded-xl bg-white/[0.03] border border-white/5 text-[10px] text-zinc-400 font-mono leading-relaxed">
                     <span className="text-brand-400 font-bold">İzmir, Türkiye:</span> Stratejik dijital reklam ve teknoloji altyapısı.
                   </div>
@@ -184,7 +185,7 @@ export function MacOSServiceShowcase({ services }: MacOSServiceShowcaseProps) {
               </div>
 
               {/* Internal Right Stage: Service Details (7/8 Cols) */}
-              <div className="col-span-7 sm:col-span-8 p-5 sm:p-6 flex flex-col justify-between space-y-4 bg-slate-900/40">
+              <div className="md:col-span-8 p-4 sm:p-6 flex flex-col justify-between space-y-4 bg-slate-900/40 min-w-0">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeService.id}
@@ -196,7 +197,7 @@ export function MacOSServiceShowcase({ services }: MacOSServiceShowcaseProps) {
                   >
                     {/* Top Badge & Header */}
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="px-2.5 py-0.5 rounded-full bg-brand-500/15 border border-brand-500/30 text-brand-400 text-[10px] font-mono font-medium">
                           {activeService.category}
                         </span>
@@ -228,9 +229,9 @@ export function MacOSServiceShowcase({ services }: MacOSServiceShowcaseProps) {
                         </div>
                       </div>
 
-                      <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
-                        <ActiveIcon className="w-5 h-5 text-brand-400 flex-shrink-0" />
-                        <span className="truncate">{activeService.title}</span>
+                      <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-start gap-2">
+                        <ActiveIcon className="w-5 h-5 text-brand-400 flex-shrink-0 mt-0.5" />
+                        <span className="md:truncate">{activeService.title}</span>
                       </h3>
 
                       <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed line-clamp-2">

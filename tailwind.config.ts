@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import defaultTheme from "tailwindcss/defaultTheme";
 
 const config: Config = {
   content: [
@@ -8,6 +9,8 @@ const config: Config = {
   ],
   darkMode: "class",
   theme: {
+    // "xs" must come first so larger breakpoints still override it in the cascade
+    screens: { xs: "420px", ...defaultTheme.screens },
     extend: {
       colors: {
         background: "#1F1F1F",
@@ -71,6 +74,8 @@ const config: Config = {
         "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "float": "float 6s ease-in-out infinite",
         "shimmer": "shimmer 2.5s linear infinite",
+        fadeIn: "fadeIn 0.35s ease-out both",
+        slideIn: "slideIn 0.35s ease-out both",
       },
       keyframes: {
         float: {
@@ -79,6 +84,14 @@ const config: Config = {
         },
         shimmer: {
           "100%": { transform: "translateX(100%)" },
+        },
+        fadeIn: {
+          "0%": { opacity: "0", transform: "translateY(4px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        slideIn: {
+          "0%": { opacity: "0", transform: "translateX(16px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
         },
       },
     },

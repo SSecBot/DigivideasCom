@@ -42,10 +42,17 @@ import {
   Link as LinkIcon,
   ChevronUp,
   ChevronDown,
+  BarChart3,
+  MapPinned,
+  Megaphone,
+  MessageCircle,
 } from "lucide-react";
-import { AdminAuthGuard } from "@/components/admin/AdminAuthGuard";
-import { clearAdminSession } from "@/lib/auth/admin-auth";
-import { useCMSStore } from "@/lib/store/cms-store";
+import { AdminAuthGuard, adminLogout } from "@/components/admin/AdminAuthGuard";
+import { useAdminCMSStore, uploadImages } from "@/lib/store/admin-cms-store";
+import { AnalyticsDashboard } from "@/components/admin/analytics/AnalyticsDashboard";
+import { LeadFinder } from "@/components/admin/leads/LeadFinder";
+import { PromoManager } from "@/components/admin/promos/PromoManager";
+import { toWhatsAppDigits } from "@/lib/utils/sanitize";
 import {
   ServiceItem,
   CustomerItem,
@@ -58,6 +65,9 @@ import { slugify } from "@/lib/utils/slugify";
 
 type ActiveTab =
   | "overview"
+  | "analytics"
+  | "leads"
+  | "promos"
   | "services"
   | "customers"
   | "blog"
@@ -75,6 +85,12 @@ export default function AdminDashboardPage() {
     faqs,
     narrative,
     inquiries,
+    promos,
+    syncError,
+    clearSyncError,
+    savePromo,
+    deletePromo,
+    deleteInquiry,
     saveService,
     deleteService,
     saveCustomer,
@@ -87,7 +103,7 @@ export default function AdminDashboardPage() {
     deleteFAQ,
     saveNarrative,
     resetToFactoryDefaults,
-  } = useCMSStore();
+  } = useAdminCMSStore();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [successToast, setSuccessToast] = useState("");
@@ -112,6 +128,11 @@ export default function AdminDashboardPage() {
   // Settings State
   const [settingsState, setSettingsState] = useState<SiteNarrative>(narrative);
 
+  // Start each tab at the top (matters on phones where the tab bar is sticky)
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [activeTab]);
+
   // Keep settingsState in sync when narrative loads
   useEffect(() => {
     setSettingsState(narrative);
@@ -122,55 +143,42 @@ export default function AdminDashboardPage() {
     setTimeout(() => setSuccessToast(""), 3500);
   };
 
-  const handleLogout = () => {
-    clearAdminSession();
+  const handleLogout = async () => {
+    await adminLogout();
     window.location.href = "/";
   };
 
-  // Helper to handle local file upload as Data URL
+  const [uploadError, setUploadError] = useState("");
+
+  // Uploads the selected image(s) to the server and returns their public URLs
   const handleFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
-    onSuccess: (dataUrl: string) => void
+    onSuccess: (url: string) => void
   ) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        onSuccess(reader.result);
+    uploadImages([file])
+      .then(([url]) => {
+        onSuccess(url);
         triggerToast("Görsel başarıyla yüklendi ve bağlandı!");
-      }
-    };
-    reader.readAsDataURL(file);
+      })
+      .catch((error: Error) => setUploadError(error.message));
   };
 
-  // Helper to handle multiple local file uploads as Data URLs
   const handleMultiFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
-    onSuccess: (dataUrls: string[]) => void
+    onSuccess: (urls: string[]) => void
   ) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const fileList = Array.from(files);
-    const results: string[] = [];
-    let processed = 0;
-
-    fileList.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          results.push(reader.result);
-        }
-        processed++;
-        if (processed === fileList.length) {
-          onSuccess(results);
-          triggerToast(`${results.length} görsel başarıyla yüklendi ve eklendi!`);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    uploadImages(files)
+      .then((urls) => {
+        onSuccess(urls);
+        triggerToast(`${urls.length} görsel başarıyla yüklendi ve eklendi!`);
+      })
+      .catch((error: Error) => setUploadError(error.message));
   };
 
   // --- SERVICE MODAL HANDLERS ---
@@ -327,14 +335,34 @@ export default function AdminDashboardPage() {
       <div className="min-h-screen bg-[#09090B] text-foreground flex flex-col antialiased selection:bg-brand-500 selection:text-slate-950 font-sans">
         {/* Toast Notification Alert */}
         {successToast && (
-          <div className="fixed top-6 right-6 z-50 bg-slate-900 border border-brand-500/60 shadow-glow-orange rounded-2xl p-4 flex items-center gap-3 text-sm text-white animate-slideIn">
+          <div className="fixed top-4 right-4 left-4 sm:left-auto z-50 bg-slate-900 border border-brand-500/60 shadow-glow-orange rounded-2xl p-4 flex items-center gap-3 text-sm text-white animate-slideIn">
             <CheckCircle className="w-5 h-5 text-brand-400 flex-shrink-0" />
             <span className="font-medium">{successToast}</span>
           </div>
         )}
 
+        {(syncError || uploadError) && (
+          <div
+            role="alert"
+            className="fixed top-20 right-4 left-4 sm:left-auto sm:max-w-md z-50 bg-slate-900 border border-red-500/60 rounded-2xl p-4 flex items-start gap-3 text-sm text-white"
+          >
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+            <span className="flex-1">{syncError || uploadError}</span>
+            <button
+              onClick={() => {
+                clearSyncError();
+                setUploadError("");
+              }}
+              aria-label="Uyarıyı kapat"
+              className="text-zinc-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Top Navigation Bar */}
-        <header className="h-16 bg-slate-950/90 border-b border-white/10 px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-xl">
+        <header className="h-16 bg-slate-950/90 border-b border-white/10 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-amber-400 p-0.5 shadow-glow-orange flex items-center justify-center">
               <div className="w-full h-full bg-slate-950 rounded-[9px] flex items-center justify-center">
@@ -344,11 +372,11 @@ export default function AdminDashboardPage() {
             <div>
               <h1 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
                 <span>digivideas CMS</span>
-                <span className="text-[10px] font-mono bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-md border border-brand-500/30">
+                <span className="hidden sm:inline text-[10px] font-mono bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-md border border-brand-500/30">
                   Yönetim Paneli
                 </span>
               </h1>
-              <p className="text-[10px] text-zinc-400 font-mono">İzmir, Türkiye Dijital Reklam Ajansı</p>
+              <p className="hidden sm:block text-[10px] text-zinc-400 font-mono">İzmir, Türkiye Dijital Reklam Ajansı</p>
             </div>
           </div>
 
@@ -356,18 +384,20 @@ export default function AdminDashboardPage() {
             <Link
               href="/"
               target="_blank"
+              aria-label="Siteyi yeni sekmede gör"
               className="inline-flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/10 transition-colors font-mono"
             >
-              <span>Siteyi Gör</span>
+              <span className="hidden sm:inline">Siteyi Gör</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </Link>
 
             <button
               onClick={handleLogout}
+              aria-label="Çıkış yap"
               className="inline-flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/10 transition-colors font-mono"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Çıkış Yap</span>
+              <span className="hidden sm:inline">Çıkış Yap</span>
             </button>
           </div>
         </header>
@@ -375,15 +405,15 @@ export default function AdminDashboardPage() {
         {/* Main Dashboard Layout */}
         <div className="flex-1 flex flex-col md:flex-row">
           {/* Left Admin Navigation Sidebar */}
-          <aside className="w-full md:w-64 bg-slate-950/60 border-b md:border-b-0 md:border-r border-white/10 p-4 space-y-2 flex-shrink-0">
-            <div className="px-3 py-2 text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+          <aside className="w-full md:w-64 bg-slate-950/90 md:bg-slate-950/60 border-b md:border-b-0 md:border-r border-white/10 p-3 md:p-4 md:space-y-2 flex-shrink-0 sticky top-16 z-30 md:static backdrop-blur-xl">
+            <div className="hidden md:block px-3 py-2 text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
               Yönetim Menüsü
             </div>
 
-            <nav className="space-y-1">
+            <nav aria-label="Yönetim menüsü" className="flex md:block gap-1.5 overflow-x-auto md:overflow-visible md:space-y-1 pb-1 md:pb-0 scrollbar-none">
               <button
                 onClick={() => setActiveTab("overview")}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "overview"
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "overview"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -393,8 +423,41 @@ export default function AdminDashboardPage() {
               </button>
 
               <button
+                onClick={() => setActiveTab("analytics")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "analytics"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <BarChart3 className="w-4 h-4 flex-shrink-0" />
+                <span>Site Analizi</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("leads")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "leads"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <MapPinned className="w-4 h-4 flex-shrink-0" />
+                <span>Müşteri Bulucu</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("promos")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "promos"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <Megaphone className="w-4 h-4 flex-shrink-0" />
+                <span>Reklamlarımız</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab("services")}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "services"
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "services"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -410,7 +473,7 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setActiveTab("customers")}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "customers"
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "customers"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -426,7 +489,7 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setActiveTab("blog")}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "blog"
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "blog"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -442,7 +505,7 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setActiveTab("tags")}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "tags"
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "tags"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -458,7 +521,7 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setActiveTab("faqs")}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "faqs"
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "faqs"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -474,7 +537,7 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setActiveTab("inquiries")}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "inquiries"
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "inquiries"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -490,7 +553,7 @@ export default function AdminDashboardPage() {
 
               <button
                 onClick={() => setActiveTab("settings")}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "settings"
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "settings"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -500,7 +563,7 @@ export default function AdminDashboardPage() {
               </button>
             </nav>
 
-            <div className="pt-6 mt-6 border-t border-white/10">
+            <div className="hidden md:block pt-6 mt-6 border-t border-white/10">
               <button
                 onClick={() => {
                   if (confirm("Tüm değişiklikler sıfırlanıp fabrika varsayılanlarına dönecek. Emin misiniz?")) {
@@ -517,7 +580,7 @@ export default function AdminDashboardPage() {
           </aside>
 
           {/* Right Main Content Area */}
-          <main className="flex-1 p-6 sm:p-10 overflow-y-auto max-w-7xl">
+          <main className="flex-1 min-w-0 p-4 sm:p-8 lg:p-10 overflow-y-auto max-w-7xl">
             {/* 1. TAB: OVERVIEW */}
             {activeTab === "overview" && (
               <div className="space-y-8">
@@ -528,8 +591,8 @@ export default function AdminDashboardPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/10 space-y-2">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/80 border border-white/10 space-y-2">
                     <div className="flex items-center justify-between text-zinc-400 text-xs font-mono">
                       <span>Yayındaki Hizmetler</span>
                       <Layers className="w-4 h-4 text-brand-400" />
@@ -615,6 +678,25 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {activeTab === "analytics" && <AnalyticsDashboard />}
+
+            {activeTab === "leads" && <LeadFinder />}
+
+            {activeTab === "promos" && (
+              <PromoManager
+                promos={promos}
+                onSave={(promo) => {
+                  savePromo(promo);
+                  triggerToast("Reklam kaydedildi! Ana sayfada yayında.");
+                }}
+                onDelete={(id) => {
+                  deletePromo(id);
+                  triggerToast("Reklam silindi.");
+                }}
+                onUpload={handleFileUpload}
+              />
             )}
 
             {/* 2. TAB: SERVICES */}
@@ -1087,15 +1169,49 @@ export default function AdminDashboardPage() {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono break-all">
                           <div className="text-brand-400">Hizmet: {inq.service}</div>
                           <div className="text-zinc-300">E-posta: {inq.email}</div>
                           <div className="text-zinc-300">Tel: {inq.phone}</div>
                         </div>
 
-                        <p className="text-xs text-zinc-200 bg-white/5 p-3 rounded-xl leading-relaxed">
+                        <p className="text-xs text-zinc-200 bg-white/5 p-3 rounded-xl leading-relaxed whitespace-pre-line break-words">
                           {inq.message}
                         </p>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <a
+                            href={`mailto:${inq.email}`}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-200"
+                          >
+                            <Mail className="w-3.5 h-3.5" /> E-posta
+                          </a>
+                          <a
+                            href={`tel:${inq.phone.replace(/[^0-9+]/g, "")}`}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-200"
+                          >
+                            <Phone className="w-3.5 h-3.5" /> Ara
+                          </a>
+                          <a
+                            href={`https://wa.me/${toWhatsAppDigits(inq.phone.trim().startsWith("0") ? `9${inq.phone}` : inq.phone, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                          </a>
+                          <button
+                            onClick={() => {
+                              if (confirm(`${inq.name} adlı kişinin talebi silinsin mi?`)) {
+                                deleteInquiry(inq.id);
+                                triggerToast("Talep silindi.");
+                              }
+                            }}
+                            className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-zinc-400 hover:text-red-300"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Sil
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1139,7 +1255,7 @@ export default function AdminDashboardPage() {
                           <span>Yükle</span>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
                             className="hidden"
                             onChange={(e) => handleFileUpload(e, (url) => setSettingsState({ ...settingsState, logoUrl: url }))}
                           />
@@ -1268,7 +1384,7 @@ export default function AdminDashboardPage() {
 
                   <button
                     type="submit"
-                    className="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-8 py-3.5 rounded-2xl shadow-glow-orange flex items-center gap-2 text-sm transition-all active:scale-98"
+                    className="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-8 py-3.5 rounded-2xl shadow-glow-orange flex items-center gap-2 text-sm transition-all active:scale-[0.98]"
                   >
                     <Save className="w-4 h-4" />
                     <span>Tüm Ayarları Kaydet</span>
@@ -1282,7 +1398,7 @@ export default function AdminDashboardPage() {
         {/* --- MODAL 1: SERVICE EDIT / CREATE --- */}
         {serviceModalOpen && editingService && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6">
+            <div className="bg-slate-900 border border-white/15 rounded-3xl p-5 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <h3 className="text-lg font-bold text-white">
                   {editingService.id ? "Hizmeti Düzenle" : "Yeni Hizmet Ekle"}
@@ -1388,7 +1504,7 @@ export default function AdminDashboardPage() {
                       <span>Yükle</span>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
                         className="hidden"
                         onChange={(e) => handleFileUpload(e, (url) => setEditingService({ ...editingService, heroImage: url }))}
                       />
@@ -1462,7 +1578,7 @@ export default function AdminDashboardPage() {
         {/* --- MODAL 2: CUSTOMER EDIT / CREATE --- */}
         {customerModalOpen && editingCustomer && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6">
+            <div className="bg-slate-900 border border-white/15 rounded-3xl p-5 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <h3 className="text-lg font-bold text-white">
                   {editingCustomer.id ? "Müşteri Vakasını Düzenle" : "Yeni Müşteri Vakası Ekle"}
@@ -1557,7 +1673,7 @@ export default function AdminDashboardPage() {
                       <span>Yükle</span>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
                         className="hidden"
                         onChange={(e) => handleFileUpload(e, (url) => setEditingCustomer({ ...editingCustomer, heroImage: url }))}
                       />
@@ -1785,7 +1901,7 @@ export default function AdminDashboardPage() {
                                 <span className="hidden md:inline">Değiştir</span>
                                 <input
                                   type="file"
-                                  accept="image/*"
+                                  accept="image/png,image/jpeg,image/webp,image/gif"
                                   className="hidden"
                                   onChange={(e) =>
                                     handleFileUpload(e, (url) => {
@@ -1881,7 +1997,7 @@ export default function AdminDashboardPage() {
                       <span>Çoklu Dosya Yükle</span>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
                         multiple
                         className="hidden"
                         onChange={(e) =>
@@ -1918,7 +2034,7 @@ export default function AdminDashboardPage() {
         {/* --- MODAL 3: BLOG EDIT / CREATE --- */}
         {blogModalOpen && editingBlog && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6">
+            <div className="bg-slate-900 border border-white/15 rounded-3xl p-5 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <h3 className="text-lg font-bold text-white">
                   {editingBlog.id ? "Makaleyi Düzenle" : "Yeni Makale Yaz"}
@@ -1972,7 +2088,7 @@ export default function AdminDashboardPage() {
                       <span>Yükle</span>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
                         className="hidden"
                         onChange={(e) => handleFileUpload(e, (url) => setEditingBlog({ ...editingBlog, coverImage: url }))}
                       />
@@ -2036,7 +2152,7 @@ export default function AdminDashboardPage() {
         {/* --- MODAL 4: TAG EDIT / CREATE --- */}
         {tagModalOpen && editingTag && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
+            <div className="bg-slate-900 border border-white/15 rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <h3 className="text-lg font-bold text-white">
                   {editingTag.id ? "Etiketi Düzenle" : "Yeni Etiket Oluştur"}
@@ -2110,7 +2226,7 @@ export default function AdminDashboardPage() {
         {/* --- MODAL 5: FAQ EDIT / CREATE --- */}
         {faqModalOpen && editingFAQ && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6">
+            <div className="bg-slate-900 border border-white/15 rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-2xl space-y-6">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <h3 className="text-lg font-bold text-white">
                   {editingFAQ.id ? "SSS Sorusunu Düzenle" : "Yeni SSS Sorusu"}

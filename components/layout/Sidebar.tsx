@@ -16,6 +16,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { useCMSStore } from "@/lib/store/cms-store";
+import { toWhatsAppDigits } from "@/lib/utils/sanitize";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -24,7 +25,7 @@ export function Sidebar() {
   const [isHovered, setIsHovered] = useState(false);
 
   const isExpanded = isHovered || isOpenMobile;
-  const whatsappUrl = `https://wa.me/${(narrative.whatsappNumber || "905492115561").replace(/[^0-9]/g, "")}?text=Merhaba,%20Digivideas%20dijital%20reklam%20hizmetleri%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum.`;
+  const whatsappUrl = `https://wa.me/${toWhatsAppDigits(narrative.whatsappNumber)}?text=Merhaba,%20Digivideas%20dijital%20reklam%20hizmetleri%20hakk%C4%B1nda%20bilgi%20almak%20istiyorum.`;
 
   const navItems = [
     { label: "Ana Sayfa", href: "/", icon: Home },

@@ -5,6 +5,8 @@ import {
   SiteNarrative,
   FAQItem,
   TagItem,
+  PromoItem,
+  ContentSnapshot,
 } from "@/lib/types/cms";
 
 export const initialSiteNarrative: SiteNarrative = {
@@ -563,3 +565,36 @@ Bütçenizi hem talep yaratmaya hem de arama talebini toplamaya dengeli şekilde
     featured: false,
   },
 ];
+
+export const initialPromos: PromoItem[] = [
+  {
+    id: "promo-lrwebs",
+    brand: "LrWebs",
+    title: "Web altyapınızı sürdürülebilir kod mimarisiyle yeniden inşa edin",
+    description:
+      "LrWebs; web uygulaması geliştirme, sistem mimarisi, UI/UX tasarım, performans & SEO optimizasyonu ve e-ticaret altyapısını tek ekipte, keşiften bakıma kadar uçtan uca sunan bir web mühendisliği ajansıdır.",
+    url: "https://lrwebs.com.tr",
+    ctaText: "lrwebs.com.tr'yi Ziyaret Et",
+    badge: "Web Mühendisliği",
+    imageUrl: "",
+    highlights: [
+      "Next.js, TypeScript & Node.js ile performans odaklı web uygulamaları",
+      "Test edilebilir, dokümante edilmiş sürdürülebilir kod",
+      "Performans & SEO optimizasyonu, e-ticaret altyapısı",
+      "Bakım ve teknik destek",
+    ],
+    status: "published",
+    order: 1,
+    updatedAt: "2026-10-16T00:00:00.000Z",
+  },
+];
+
+export const defaultContentSnapshot: ContentSnapshot = {
+  services: initialServices,
+  customers: initialCustomers,
+  blogPosts: initialBlogPosts,
+  tags: initialTags,
+  faqs: initialFAQs,
+  promos: initialPromos,
+  narrative: initialSiteNarrative,
+};

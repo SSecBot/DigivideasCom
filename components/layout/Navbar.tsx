@@ -6,13 +6,14 @@ import Image from "next/image";
 import { Instagram, Facebook, ArrowUpRight } from "lucide-react";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 import { useCMSStore } from "@/lib/store/cms-store";
+import { safeHref, safeImageSrc } from "@/lib/utils/sanitize";
 
 export function Navbar() {
   const { narrative } = useCMSStore();
 
-  const logoSrc = narrative.logoUrl || "/assets/logo.png";
-  const facebookLink = narrative.facebookUrl || "https://facebook.com/digivideas";
-  const instagramLink = narrative.instagramUrl || "https://instagram.com/digivideas";
+  const logoSrc = safeImageSrc(narrative.logoUrl, "/assets/logo.png");
+  const facebookLink = safeHref(narrative.facebookUrl, "https://facebook.com/digivideas");
+  const instagramLink = safeHref(narrative.instagramUrl, "https://instagram.com/digivideas");
 
   return (
     <header className="sticky top-0 z-40 w-full glass-nav backdrop-blur-2xl">

@@ -12,29 +12,31 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { useCMSStore } from "@/lib/store/cms-store";
+import { safeHref, toWhatsAppDigits } from "@/lib/utils/sanitize";
 
 export function Footer() {
-  const { narrative } = useCMSStore();
+  const { narrative, services } = useCMSStore();
 
-  const facebookLink = narrative.facebookUrl || "https://facebook.com/digivideas";
-  const instagramLink = narrative.instagramUrl || "https://instagram.com/digivideas";
-  const linkedinLink = narrative.linkedinUrl || "https://linkedin.com/company/digivideas";
-  const rawPhone = (narrative.whatsappNumber || "+905492115561").replace(/[^0-9]/g, "");
+  const facebookLink = safeHref(narrative.facebookUrl, "https://facebook.com/digivideas");
+  const instagramLink = safeHref(narrative.instagramUrl, "https://instagram.com/digivideas");
+  const linkedinLink = safeHref(narrative.linkedinUrl, "https://linkedin.com/company/digivideas");
+  const rawPhone = toWhatsAppDigits(narrative.whatsappNumber);
 
   return (
-    <footer className="relative bg-slate-950 border-t border-white/10 pt-16 pb-12 overflow-hidden">
+    <footer className="relative bg-slate-950 border-t border-white/10 pt-12 sm:pt-16 pb-24 sm:pb-12 overflow-hidden">
       {/* Ambient background glow */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[250px] bg-brand-500/10 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-white/10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 sm:gap-10 pb-12 border-b border-white/10">
           {/* Col 1 & 2: Brand & Narrative */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="sm:col-span-2 space-y-4">
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-2xl font-bold tracking-tighter"
             >
-              <img src="/assets/logo.png" alt="logo"  style={{ width: '150px', height: 'auto' }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/logo.png" alt="digivideas dijital reklam ajansı logosu" width={150} height={47} className="w-[150px] h-auto" loading="lazy" />
             </Link>
 
             <p className="text-sm text-zinc-400 leading-relaxed max-w-sm">
@@ -124,42 +126,19 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: Hizmetlerimiz */}
+          {/* Col 4: Hizmetlerimiz (live from the CMS) */}
           <div className="space-y-3">
             <h4 className="text-xs font-mono font-bold text-white uppercase tracking-wider">
               Uzmanlıklarımız
             </h4>
             <ul className="space-y-2 text-sm text-zinc-400">
-              <li>
-                <Link href="/services/sosyal-medya" className="hover:text-brand-400 transition-colors">
-                  Sosyal Medya Yönetimi
-                </Link>
-              </li>
-              <li>
-                <Link href="/services/performans-pazarlamasi" className="hover:text-brand-400 transition-colors">
-                  Meta & Google Ads
-                </Link>
-              </li>
-              <li>
-                <Link href="/services/web-tasarim" className="hover:text-brand-400 transition-colors">
-                  Web & UI/UX Tasarım
-                </Link>
-              </li>
-              <li>
-                <Link href="/services/kreatif-produksiyon" className="hover:text-brand-400 transition-colors">
-                  Kreatif Prodüksiyon
-                </Link>
-              </li>
-              <li>
-                <Link href="/services/seo-ve-icerik" className="hover:text-brand-400 transition-colors">
-                  SEO & İçerik Stratejisi
-                </Link>
-              </li>
-              <li>
-                <Link href="/services/marka-kimligi" className="hover:text-brand-400 transition-colors">
-                  Marka Kimliği & Strateji
-                </Link>
-              </li>
+              {services.slice(0, 8).map((service) => (
+                <li key={service.id}>
+                  <Link href={`/services/${service.slug}`} className="hover:text-brand-400 transition-colors">
+                    {service.title}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -201,13 +180,13 @@ export function Footer() {
         </div>
 
         {/* Bottom Copyright */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-500 gap-4">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-500 gap-4 text-center sm:text-left">
           <p>© {new Date().getFullYear()} digivideas. Tüm hakları saklıdır. İzmir, Torbalı, Türkiye.</p>
           <div className="flex items-center gap-6">
-            <Link href="/about" className="hover:text-zinc-300 transition-colors">
+            <Link href="/kvkk" className="hover:text-zinc-300 transition-colors">
               Gizlilik Politikası
             </Link>
-            <Link href="/contact" className="hover:text-zinc-300 transition-colors">
+            <Link href="/kvkk" className="hover:text-zinc-300 transition-colors">
               KVKK Aydınlatma
             </Link>
           </div>

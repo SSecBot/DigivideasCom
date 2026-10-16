@@ -1,15 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lock, KeyRound, AlertCircle, ShieldCheck, ArrowRight, Eye, EyeOff } from "lucide-react";
-import {
-  checkAdminPasscode,
-  setAdminSession,
-  getAdminSession,
-} from "@/lib/auth/admin-auth";
+import { Lock, KeyRound, AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 interface AdminAuthGuardProps {
   children: React.ReactNode;
+}
+
+export async function adminLogout(): Promise<void> {
+  await fetch("/api/admin/logout", { method: "POST" }).catch(() => undefined);
 }
 
 export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
@@ -21,34 +20,39 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   const [shake, setShake] = useState(false);
 
   useEffect(() => {
-    const session = getAdminSession();
-    setIsAuthenticated(session.isAuthenticated);
-
-    const handleAuthChange = () => {
-      const updated = getAdminSession();
-      setIsAuthenticated(updated.isAuthenticated);
-    };
-
-    window.addEventListener("digivideas_auth_changed", handleAuthChange);
-    return () => window.removeEventListener("digivideas_auth_changed", handleAuthChange);
+    fetch("/api/admin/session", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data: { authenticated?: boolean; error?: string }) => {
+        if (data.error) setErrorMsg(data.error);
+        setIsAuthenticated(data.authenticated === true);
+      })
+      .catch(() => setIsAuthenticated(false));
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setIsSubmitting(true);
-
-    setTimeout(() => {
-      if (checkAdminPasscode(passcode)) {
-        setAdminSession();
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passcode }),
+      });
+      if (res.ok) {
+        setPasscode("");
         setIsAuthenticated(true);
-      } else {
-        setErrorMsg("Geçersiz Yönetici Şifresi");
-        setShake(true);
-        setTimeout(() => setShake(false), 500);
+        return;
       }
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      setErrorMsg(data.error || "Geçersiz Yönetici Şifresi");
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+    } catch {
+      setErrorMsg("Sunucuya ulaşılamadı. Bağlantınızı kontrol edin.");
+    } finally {
       setIsSubmitting(false);
-    }, 300);
+    }
   };
 
   if (isAuthenticated === null) {
@@ -74,7 +78,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
 
       {/* Auth Card Container */}
       <div
-        className={`w-full max-w-md bg-slate-900/90 border border-white/10 rounded-3xl p-8 shadow-2xl backdrop-blur-2xl relative z-10 transition-transform ${shake ? "animate-bounce" : ""
+        className={`w-full max-w-md bg-slate-900/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-2xl relative z-10 transition-transform ${shake ? "animate-bounce" : ""
           }`}
       >
         {/* Top Header Badge */}
@@ -87,7 +91,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
 
           <div>
             <h2 className="text-2xl font-bold text-white tracking-tight">
-              digi<span className="text-brand-500">ivi</span>deas CMS
+              dig<span className="text-brand-500">ivi</span>deas CMS
             </h2>
             <p className="text-xs font-mono text-zinc-400 mt-1">
               Yönetici Kimlik Doğrulama Paneli
@@ -106,7 +110,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
         {/* Password Form */}
         <form onSubmit={handleLogin} className="mt-6 space-y-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-mono font-medium text-zinc-300">
+            <label htmlFor="admin-passcode" className="block text-xs font-mono font-medium text-zinc-300">
               Yönetici Güvenlik Şifresi
             </label>
             <div className="relative">
@@ -114,6 +118,8 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
                 <KeyRound className="w-4 h-4" />
               </div>
               <input
+                id="admin-passcode"
+                autoComplete="current-password"
                 type={showPassword ? "text" : "password"}
                 value={passcode}
                 onChange={(e) => {
@@ -129,6 +135,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200"
                 tabIndex={-1}
+                aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -138,7 +145,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
           <button
             type="submit"
             disabled={isSubmitting || !passcode.trim()}
-            className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-slate-950 font-bold py-3.5 px-4 rounded-xl shadow-glow-orange transition-all flex items-center justify-center gap-2 active:scale-98"
+            className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-slate-950 font-bold py-3.5 px-4 rounded-xl shadow-glow-orange transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             {isSubmitting ? (
               <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />

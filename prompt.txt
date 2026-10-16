@@ -87,9 +87,9 @@ Use planning mode. Refine and update the implementation of the "digivideas" agen
   - Implement an authentication barrier/modal guard before granting access to the WordPress-style admin panel.
   - Require a secure passcode input field.
   - **Hardcoded Authentication Passcode:** Strictly validate the entered passcode against:
-    `MuazDigivideas285561.`
+    `.env.local` içindeki `ADMIN_PASSCODE` değeri
   - **Auth Logic & State Handling:**
-    - If the user enters the correct passcode (`MuazDigivideas285561.`), store an authenticated session token/cookie (`digivideas_admin_session`) and grant full access to the CMS dashboard.
+    - If the user enters the correct passcode (`.env.local` içindeki `ADMIN_PASSCODE` değeri), store an authenticated session token/cookie (`digivideas_admin_session`) and grant full access to the CMS dashboard.
     - If the entered passcode is incorrect, render a clean error badge ("Geçersiz Yönetici Şifresi") and deny access.
     - Include a "Çıkış Yap" (Log Out) button inside the admin header to revoke the session token cleanly.
 
@@ -117,6 +117,6 @@ Use planning mode. Refine and update the implementation of the "digivideas" agen
 ---
 
 ### Execution Instructions for Claude 3.7 Sonnet Thinking Model
-1. **Planning Mode Update:** First, output an updated Implementation Plan artifact detailing the password verification handler (`MuazDigivideas285561.`), session state logic, and the Framer Motion / CSS 3D transform state hooks for the phone position swap algorithm.
+1. **Planning Mode Update:** First, output an updated Implementation Plan artifact detailing the password verification handler (`.env.local` içindeki `ADMIN_PASSCODE` değeri), session state logic, and the Framer Motion / CSS 3D transform state hooks for the phone position swap algorithm.
 2. **Execute Refactoring:** Refactor the Hero section component to include interactive 3D phone swaps and magnetic wrappers. Secure the `/dashboard/admin/digivideas` route with the designated password lock.
-3. **Autonomous Verification:** Verify smooth 60fps swap animations when clicking side phones, zero layout shifts, proper rotation angles (`30deg`), clean asset bindings, and seamless admin login using `MuazDigivideas285561.`.
+3. **Autonomous Verification:** Verify smooth 60fps swap animations when clicking side phones, zero layout shifts, proper rotation angles (`30deg`), clean asset bindings, and seamless admin login using `.env.local` içindeki `ADMIN_PASSCODE` değeri.
