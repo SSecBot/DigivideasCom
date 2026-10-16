@@ -1,4 +1,5 @@
 import { LeadAnalysis, LeadReason, LeadTier, PlaceLead, WebsiteAudit } from "@/lib/leads/types";
+import { hostOf, isSocialUrl, ownWebsite } from "@/lib/leads/social";
 
 /**
  * Scores how promising a business is as a social-media advertising client.
@@ -28,6 +29,15 @@ const MEDIUM_FIT_TYPES = new Set([
   "lawyer", "accounting", "doctor", "hospital", "pharmacy", "car_repair", "moving_company",
   "plumber", "electrician", "general_contractor", "roofing_contractor", "painter", "locksmith",
 ]);
+
+/**
+ * Turkish category labels as shown on Google Maps (used when places come from the
+ * browser scrape, which has no API type codes). Matched case-insensitively.
+ */
+const HIGH_FIT_LABEL =
+  /kafe|cafe|kahve|restoran|lokanta|pastane|fırın|tatlı|dondurma|börek|döner|kebap|pide|pizza|burger|bar|meyhane|kahvaltı|güzellik|kuaför|berber|tırnak|manikür|spa|masaj|cilt|estetik|güzellik merkezi|epilasyon|dövme|spor salonu|fitness|pilates|yoga|diş|klinik|fizik tedavi|veteriner|pet shop|evcil hayvan|butik|giyim|ayakkabı|kuyumcu|mücevher|mobilya|ev tekstili|çiçek|hediyelik|kozmetik|optik|gözlük|emlak|otel|pansiyon|apart|tatil|oto galeri|araç kiralama|oto yıkama|düğün|nikah|organizasyon|fotoğraf|sürücü kursu|anaokulu|kreş|dil okulu|etüt|kurs/i;
+const MEDIUM_FIT_LABEL =
+  /mağaza|market|elektronik|hırdavat|kitap|okul|seyahat|sigorta|avukat|hukuk|muhasebe|mali müşavir|doktor|hastane|eczane|oto servis|tamir|nakliyat|tesisat|elektrikçi|inşaat|tadilat|boya|çilingir/i;
 
 const SOCIAL_LABELS: Record<string, string> = {
   instagram: "Instagram",
@@ -61,9 +71,10 @@ export function analyzeLead(place: PlaceLead, audit?: WebsiteAudit): LeadAnalysi
 
   // 1) Sector fit
   const types = [place.primaryType, ...place.types].filter(Boolean) as string[];
-  if (types.some((type) => HIGH_FIT_TYPES.has(type))) {
+  const label = place.primaryTypeLabel || "";
+  if (types.some((type) => HIGH_FIT_TYPES.has(type)) || HIGH_FIT_LABEL.test(label)) {
     add(25, "Sosyal medya reklamına çok uygun, görsel/yerel bir sektör");
-  } else if (types.some((type) => MEDIUM_FIT_TYPES.has(type))) {
+  } else if (types.some((type) => MEDIUM_FIT_TYPES.has(type)) || MEDIUM_FIT_LABEL.test(label)) {
     add(12, "Yerel reklamla müşteri kazanabilecek bir sektör");
   } else {
     add(4, "Sektör sosyal medya reklamı için orta/düşük öncelikli");
@@ -89,9 +100,17 @@ export function analyzeLead(place: PlaceLead, audit?: WebsiteAudit): LeadAnalysi
   }
 
   // 3) Digital gaps (the bigger the gap, the more we can sell)
-  if (!place.website) {
-    add(20, "Web sitesi yok: dijital varlık sıfırdan kurulabilir");
+  const website = ownWebsite(place.website);
+  const socialListing = place.website && isSocialUrl(place.website) ? hostOf(place.website) : "";
+  if (!website) {
+    add(20, socialListing
+      ? `Kendi web sitesi yok, Google'da sadece ${socialListing} bağlantısı var`
+      : "Web sitesi yok: dijital varlık sıfırdan kurulabilir");
     opportunities.add("Web sitesi / landing page tasarımı");
+    if (socialListing.includes("instagram")) {
+      add(5, "Instagram hesabı var: reklam ve içerik yönetimiyle büyütülebilir");
+      opportunities.add("Instagram Reels & içerik prodüksiyonu");
+    }
   } else if (audit) {
     if (!audit.reachable) {
       add(15, "Web sitesi açılmıyor veya hata veriyor");
@@ -130,7 +149,7 @@ export function analyzeLead(place: PlaceLead, audit?: WebsiteAudit): LeadAnalysi
     }
     if (found.length === 0) add(5, "Hiçbir sosyal medya bağlantısı yok");
     else if (!audit.socials.tiktok) opportunities.add("TikTok içerik stratejisi");
-  } else if (!place.website) {
+  } else if (!website && !socialListing.includes("instagram")) {
     opportunities.add("Instagram hesabı kurulumu & sosyal medya yönetimi");
   }
 
@@ -147,7 +166,7 @@ export function analyzeLead(place: PlaceLead, audit?: WebsiteAudit): LeadAnalysi
   const pitch = [
     `Merhaba, ${place.name} ekibi 👋`,
     `Ben digivideas dijital reklam ajansından yazıyorum. ${place.rating ? `Google'da ${place.rating.toFixed(1)} puanınızı ve müşteri yorumlarınızı gördük; ` : ""}işletmenizin sosyal medyada çok daha fazla kişiye ulaşabileceğini düşünüyoruz.`,
-    !place.website
+    !website
       ? "Henüz bir web siteniz görünmüyor; Instagram reklamlarıyla birlikte basit bir tanıtım sayfası müşteri kazanımınızı hızla artırabilir."
       : socialsFound.length === 0
         ? "Web sitenizde sosyal medya hesaplarınıza bağlantı göremedik; düzenli içerik ve hedefli reklamlarla bölgenizdeki müşterilere ulaşabilirsiniz."

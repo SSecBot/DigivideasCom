@@ -19,6 +19,7 @@ const baseAudit: WebsiteAudit = {
   https: true,
   hasViewport: true,
   socials: { instagram: "https://instagram.com/ornek" },
+  emails: [],
   hasMetaPixel: true,
   hasGoogleAnalytics: true,
   hasGoogleTagManager: false,

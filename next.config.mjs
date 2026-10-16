@@ -32,6 +32,10 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    // Headless browser for the free Google Maps lead search; must not be bundled
+    serverComponentsExternalPackages: ["playwright-core"],
+  },
   images: {
     unoptimized: true,
   },

@@ -183,9 +183,22 @@ müşteri adayları ve yüklenen görseller sunucudaki **`data/`** klasörüne (
 | `ADMIN_PASSCODE` | Yönetim paneli şifresi. Sadece sunucuda kullanılır; asla `NEXT_PUBLIC_` ile başlatmayın. |
 | `ADMIN_SESSION_SECRET` | En az 32 karakterlik rastgele dize. Üretmek için: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
 | `DATA_DIR` | (Opsiyonel) Veri klasörü yolu. Boşsa proje içindeki `data/` kullanılır. |
-| `GOOGLE_MAPS_API_KEY` | Müşteri Bulucu için Google **Places API (New)** anahtarı. Google Cloud Console'da anahtarı yalnızca bu API ile ve sunucu IP'niz ile sınırlandırın. |
+| `PLAYWRIGHT_CHROMIUM_PATH` | (Opsiyonel) Müşteri Bulucu'nun kullanacağı Chrome/Chromium yolu. Boşsa indirilen Chromium, Chrome veya Edge kullanılır. |
+| `GOOGLE_MAPS_API_KEY` | (Opsiyonel) Google **Places API (New)** anahtarı. Boş bırakılırsa Müşteri Bulucu ücretsiz tarayıcı yöntemini kullanır. |
 | `GOOGLE_SITE_VERIFICATION` | (Opsiyonel) Google Search Console doğrulama kodu. |
 | `ANALYTICS_RETENTION_DAYS` | (Opsiyonel) Analiz verisinin saklanacağı gün sayısı (varsayılan 400). |
+
+### Müşteri Bulucu (ücretsiz Google Haritalar taraması)
+Müşteri Bulucu, API anahtarı olmadan da çalışır: sunucuda görünmez bir tarayıcı açıp Google Haritalar sonuçlarını okur
+(LrWebs Analiz uygulamasındaki yöntemle aynı). Sunucuya bir kez tarayıcı kurmanız gerekir (VPS, proje klasöründe):
+
+```bash
+pnpm exec playwright-core install --with-deps chromium
+```
+
+- 20 işletmelik bir tarama yaklaşık 1 dakika sürer; aynı anda tek tarama çalışır, saatte en fazla 20 tarama yapılabilir.
+- Google çok sık aramada CAPTCHA gösterebilir; bu durumda tarama durur ve bir süre sonra tekrar denenmelidir.
+- Paylaşımlı cPanel hostinglerde tarayıcı genellikle çalıştırılamaz; bu özellik için VPS gerekir.
 
 ### Yönetim paneli
 - Adres: `https://alanadiniz.com/dashboard/admin/digivideas` (arama motorlarına kapalıdır).

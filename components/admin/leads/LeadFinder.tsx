@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Download, Globe, Loader2, MapPinned, Search, Star, Trash2 } from "lucide-react";
+import { AlertCircle, Download, Globe, Loader2, MapPinned, Search, Square, Star, Trash2 } from "lucide-react";
 import {
   LEAD_STATUS_LABELS,
   LeadAnalysis,
   LeadSearchResponse,
+  LeadSource,
+  ScrapeJobView,
   LeadStatus,
   PlaceLead,
   SavedLead,
@@ -13,6 +15,7 @@ import {
 } from "@/lib/leads/types";
 import { LeadDetail } from "@/components/admin/leads/LeadDetail";
 import { SECTOR_PRESETS, TIER_STYLES, downloadCsv, leadsFetch } from "@/components/admin/leads/lead-utils";
+import { ownWebsite } from "@/lib/leads/social";
 
 type ResultLead = PlaceLead & { analysis: LeadAnalysis; audit?: WebsiteAudit };
 type SortKey = "score" | "ratingCount" | "rating";
@@ -38,9 +41,11 @@ function LeadRow({ lead, active, onSelect, extra }: { lead: ResultLead; active: 
               {lead.rating.toFixed(1)} ({lead.ratingCount ?? 0})
             </span>
           )}
-          <span className={`inline-flex items-center gap-1 ${lead.website ? "" : "text-brand-400"}`}>
-            <Globe className="w-3 h-3" /> {lead.website ? "web sitesi var" : "web sitesi yok"}
+          <span className={`inline-flex items-center gap-1 ${ownWebsite(lead.website) ? "" : "text-brand-400"}`}>
+            <Globe className="w-3 h-3" />{" "}
+            {ownWebsite(lead.website) ? "web sitesi var" : lead.website ? "sadece sosyal medya" : "web sitesi yok"}
           </span>
+          {lead.audit?.emails?.length ? <span className="text-zinc-300">{lead.audit.emails[0]}</span> : null}
           {extra}
         </div>
       </div>
@@ -62,6 +67,11 @@ export function LeadFinder() {
   const [sortKey, setSortKey] = useState<SortKey>("score");
   const [onlyNoWebsite, setOnlyNoWebsite] = useState(false);
   const [minScore, setMinScore] = useState(0);
+  const [placesApi, setPlacesApi] = useState<boolean | null>(null);
+  const [source, setSource] = useState<LeadSource>("scraper");
+  const [limit, setLimit] = useState(20);
+  const [job, setJob] = useState<ScrapeJobView | null>(null);
+  const pollTimer = useRef<number | null>(null);
 
   const detailRef = useRef<HTMLDivElement>(null);
   const [saved, setSaved] = useState<SavedLead[]>([]);
@@ -79,6 +89,45 @@ export function LeadFinder() {
     loadSaved();
   }, [loadSaved]);
 
+  // Polls a browser scrape job until it finishes; results stream in while it runs.
+  const pollJob = useCallback((id: string) => {
+    if (pollTimer.current) window.clearTimeout(pollTimer.current);
+    const tick = async () => {
+      try {
+        const data = await leadsFetch<ScrapeJobView>(`/api/admin/leads/scrape/${encodeURIComponent(id)}`);
+        setJob(data);
+        setResults(data.leads);
+        if (data.status === "running") {
+          pollTimer.current = window.setTimeout(tick, 1500);
+        } else {
+          setLoading(false);
+          if (data.status === "error" && data.error) setError(data.error);
+        }
+      } catch (e) {
+        setLoading(false);
+        setError((e as Error).message);
+      }
+    };
+    tick();
+  }, []);
+
+  useEffect(() => {
+    leadsFetch<{ placesApi: boolean; runningJob: ScrapeJobView | null }>("/api/admin/leads/config")
+      .then((config) => {
+        setPlacesApi(config.placesApi);
+        setSource(config.placesApi ? "places-api" : "scraper");
+        if (config.runningJob) {
+          setLastQuery(config.runningJob.query);
+          setLoading(true);
+          pollJob(config.runningJob.id);
+        }
+      })
+      .catch(() => setPlacesApi(false));
+    return () => {
+      if (pollTimer.current) window.clearTimeout(pollTimer.current);
+    };
+  }, [pollJob]);
+
   // On narrow screens the detail sits under the list, so bring it into view on selection.
   useEffect(() => {
     if (selectedId && window.innerWidth < 1280) {
@@ -92,6 +141,24 @@ export function LeadFinder() {
     const query = pageToken ? lastQuery : `${customSector.trim() || sector} ${location.trim()}`.trim();
     setLoading(true);
     setError("");
+    if (source === "scraper" && !pageToken) {
+      try {
+        const started = await leadsFetch<ScrapeJobView>("/api/admin/leads/scrape", {
+          method: "POST",
+          body: JSON.stringify({ query, limit }),
+        });
+        setLastQuery(query);
+        setResults([]);
+        setNextPageToken(undefined);
+        setSelectedId(null);
+        setJob(started);
+        pollJob(started.id);
+      } catch (e) {
+        setError((e as Error).message);
+        setLoading(false);
+      }
+      return;
+    }
     try {
       const data = await leadsFetch<LeadSearchResponse>("/api/admin/leads/search", {
         method: "POST",
@@ -110,9 +177,9 @@ export function LeadFinder() {
 
   const visibleResults = useMemo(() => {
     const filtered = results.filter(
-      (lead) => lead.analysis.score >= minScore && (!onlyNoWebsite || !lead.website)
+      (lead) => lead.analysis.score >= minScore && (!onlyNoWebsite || !ownWebsite(lead.website))
     );
-    return filtered.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       if (sortKey === "score") return b.analysis.score - a.analysis.score;
       if (sortKey === "ratingCount") return (b.ratingCount ?? 0) - (a.ratingCount ?? 0);
       return (b.rating ?? 0) - (a.rating ?? 0);
@@ -189,7 +256,7 @@ export function LeadFinder() {
 
   const exportSaved = () =>
     downloadCsv(`digivideas-musteri-adaylari-${new Date().toISOString().slice(0, 10)}.csv`, [
-      ["İşletme", "Tür", "Puan", "Seviye", "Durum", "Telefon", "Web sitesi", "Instagram", "Google puanı", "Yorum sayısı", "Adres", "Fırsatlar", "Notlar", "Google Haritalar"],
+      ["İşletme", "Tür", "Puan", "Seviye", "Durum", "Telefon", "E-posta", "Web sitesi", "Instagram", "Google puanı", "Yorum sayısı", "Adres", "Fırsatlar", "Notlar", "Google Haritalar"],
       ...filteredSaved.map((lead) => [
         lead.place.name,
         lead.place.primaryTypeLabel || lead.place.primaryType,
@@ -197,6 +264,7 @@ export function LeadFinder() {
         lead.analysis.tier,
         LEAD_STATUS_LABELS[lead.status],
         lead.place.phone,
+        lead.audit?.emails?.join(", "),
         lead.place.website,
         lead.audit?.socials.instagram,
         lead.place.rating,
@@ -259,9 +327,30 @@ export function LeadFinder() {
             e.preventDefault();
             search();
           }}
-          className="p-4 sm:p-5 rounded-2xl bg-slate-900/60 border border-white/10 grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
+          className="p-4 sm:p-5 rounded-2xl bg-slate-900/60 border border-white/10 grid grid-cols-2 md:grid-cols-12 gap-3 items-end"
         >
-          <div className="md:col-span-3 space-y-1.5">
+          <div className="col-span-2 md:col-span-12 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-mono text-zinc-400 mr-1">Kaynak:</span>
+            <button
+              type="button"
+              onClick={() => setSource("scraper")}
+              aria-pressed={source === "scraper"}
+              className={`px-3 py-1.5 rounded-lg text-xs border ${source === "scraper" ? "border-brand-500/60 bg-brand-500/10 text-white" : "border-white/10 text-zinc-400 hover:text-white"}`}
+            >
+              Google Haritalar · ücretsiz (tarayıcı)
+            </button>
+            <button
+              type="button"
+              onClick={() => placesApi && setSource("places-api")}
+              disabled={!placesApi}
+              aria-pressed={source === "places-api"}
+              title={placesApi ? undefined : "GOOGLE_MAPS_API_KEY tanımlı değil"}
+              className={`px-3 py-1.5 rounded-lg text-xs border disabled:opacity-40 disabled:cursor-not-allowed ${source === "places-api" ? "border-brand-500/60 bg-brand-500/10 text-white" : "border-white/10 text-zinc-400 hover:text-white"}`}
+            >
+              Google Places API{placesApi === false ? " (anahtar yok)" : ""}
+            </button>
+          </div>
+          <div className="col-span-2 md:col-span-3 space-y-1.5">
             <label htmlFor="lead-sector" className="block text-[11px] font-mono text-zinc-400">Sektör</label>
             <select
               id="lead-sector"
@@ -274,7 +363,7 @@ export function LeadFinder() {
               ))}
             </select>
           </div>
-          <div className="md:col-span-3 space-y-1.5">
+          <div className="col-span-2 md:col-span-2 space-y-1.5">
             <label htmlFor="lead-custom" className="block text-[11px] font-mono text-zinc-400">veya özel anahtar kelime</label>
             <input
               id="lead-custom"
@@ -284,7 +373,7 @@ export function LeadFinder() {
               className="w-full bg-slate-950 border border-white/10 focus:border-brand-500 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none"
             />
           </div>
-          <div className="md:col-span-4 space-y-1.5">
+          <div className="col-span-2 md:col-span-3 space-y-1.5">
             <label htmlFor="lead-location" className="block text-[11px] font-mono text-zinc-400">Konum</label>
             <input
               id="lead-location"
@@ -293,6 +382,22 @@ export function LeadFinder() {
               placeholder="örn. Bornova, İzmir"
               className="w-full bg-slate-950 border border-white/10 focus:border-brand-500 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none"
             />
+          </div>
+          <div className="md:col-span-2 space-y-1.5">
+            <label htmlFor="lead-limit" className="block text-[11px] font-mono text-zinc-400">Adet</label>
+            <select
+              id="lead-limit"
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              disabled={source !== "scraper"}
+              className="w-full bg-slate-950 border border-white/10 focus:border-brand-500 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none disabled:opacity-40"
+            >
+              {[10, 20, 40, 60].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </div>
           <button
             type="submit"
@@ -303,6 +408,35 @@ export function LeadFinder() {
             Ara
           </button>
         </form>
+      )}
+
+      {view === "search" && job && (job.status === "running" || job.status === "cancelled") && (
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-brand-500/30 space-y-2.5" aria-live="polite">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="text-zinc-200 min-w-0 truncate">
+              {job.status === "running" && <Loader2 className="inline w-3.5 h-3.5 mr-1.5 animate-spin text-brand-400" />}
+              {job.message}
+            </span>
+            {job.status === "running" && (
+              <button
+                onClick={() =>
+                  leadsFetch(`/api/admin/leads/scrape/${encodeURIComponent(job.id)}`, { method: "DELETE" }).catch((e: Error) =>
+                    setError(e.message)
+                  )
+                }
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/10 text-zinc-300 hover:text-white flex-shrink-0"
+              >
+                <Square className="w-3 h-3" /> Durdur
+              </button>
+            )}
+          </div>
+          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}>
+            <div className="h-full bg-brand-500 transition-all duration-500" style={{ width: `${job.progress}%` }} />
+          </div>
+          <p className="text-[11px] font-mono text-zinc-500">
+            {job.leads.length} işletme bulundu · web siteleri otomatik analiz ediliyor. Sayfadan ayrılabilirsiniz; tarama sunucuda devam eder.
+          </p>
+        </div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 items-start">
@@ -344,6 +478,11 @@ export function LeadFinder() {
                 <div className="p-8 rounded-2xl bg-slate-950/60 border border-white/10 text-center space-y-2">
                   <MapPinned className="w-8 h-8 text-zinc-500 mx-auto" />
                   <p className="text-sm text-zinc-300">Sektör ve konum seçip arayın.</p>
+                  {source === "scraper" && (
+                    <p className="text-xs text-zinc-500">
+                      Ücretsiz tarayıcı yöntemi Google Haritalar&apos;ı sunucuda açıp sonuçları tek tek okur; 20 işletme yaklaşık 1–2 dakika sürer.
+                    </p>
+                  )}
                   <p className="text-xs text-zinc-500">
                     Her sonuç; sektör uyumu, Google yorumları, web sitesi ve sosyal medya varlığına göre 0–100 arası puanlanır.
                   </p>
