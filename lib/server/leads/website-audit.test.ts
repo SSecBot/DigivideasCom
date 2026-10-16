@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AuditBlockedError, analyzeHtml, validateAuditUrl } from "@/lib/server/leads/website-audit";
+import { AuditBlockedError, analyzeHtml, extractEmails, validateAuditUrl } from "@/lib/server/leads/website-audit";
 
 const SAMPLE_HTML = `<!doctype html><html><head>
 <title>Kahve Durağı | Torbalı</title>
@@ -87,5 +87,43 @@ describe("validateAuditUrl", () => {
     for (const raw of blocked) {
       expect(() => validateAuditUrl(raw)).toThrow(AuditBlockedError);
     }
+  });
+});
+
+describe("extractEmails", () => {
+  it("finds mailto, plain-text and Cloudflare-protected e-mails (Happy Path)", () => {
+    // 1. Arrange
+    // "info@kafe.com" XOR-encoded with key 0x42 (Cloudflare email protection format)
+    const cf = "42" + Array.from("info@kafe.com").map((c) => (c.charCodeAt(0) ^ 0x42).toString(16).padStart(2, "0")).join("");
+    const html = `<a href="mailto:Rezervasyon@Kafe.com?subject=x">Yaz</a> Bize ulaşın: siparis@kafe.com.tr <span data-cfemail="${cf}"></span>`;
+
+    // 2. Act
+    const emails = extractEmails(html);
+
+    // 3. Assert
+    expect([...emails].sort()).toEqual(["info@kafe.com", "rezervasyon@kafe.com", "siparis@kafe.com.tr"]);
+  });
+
+  it("ignores image names, placeholders and tracking addresses (Edge Case 1)", () => {
+    // 1. Arrange
+    const html = `logo@2x.png ornek@example.com abc@sentry.io user@domain.com`;
+
+    // 2. Act
+    const emails = extractEmails(html);
+
+    // 3. Assert
+    expect(emails).toEqual([]);
+  });
+
+  it("returns at most five unique addresses (Edge Case 2)", () => {
+    // 1. Arrange
+    const html = Array.from({ length: 8 }, (_, i) => `kisi${i}@firma.com kisi${i}@firma.com`).join(" ");
+
+    // 2. Act
+    const emails = extractEmails(html);
+
+    // 3. Assert
+    expect(emails).toHaveLength(5);
+    expect(new Set(emails).size).toBe(5);
   });
 });

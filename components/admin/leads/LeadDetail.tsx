@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Globe,
   Loader2,
+  Mail,
   MapPin,
   MessageCircle,
   Phone,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { LeadAnalysis, PlaceLead, WebsiteAudit } from "@/lib/leads/types";
 import { safeHref } from "@/lib/utils/sanitize";
+import { ownWebsite } from "@/lib/leads/social";
 import { TIER_STYLES, mapEmbedUrl, whatsappLink } from "@/components/admin/leads/lead-utils";
 
 interface LeadDetailProps {
@@ -147,8 +149,8 @@ export function LeadDetail({ place, analysis, audit, isSaved, onAudit, onSave, o
           </div>
         )}
 
-        {/* Website audit */}
-        {place.website && (
+        {/* Website audit (own websites only, not Instagram/marketplace links) */}
+        {ownWebsite(place.website) && (
           <div className="space-y-3 p-4 rounded-xl bg-slate-950/70 border border-white/10">
             <div className="flex items-center justify-between gap-2">
               <h4 className="text-xs font-mono font-bold text-white">Web sitesi & sosyal medya taraması</h4>
@@ -192,6 +194,19 @@ export function LeadDetail({ place, analysis, audit, isSaved, onAudit, onSave, o
                       ))
                     )}
                   </div>
+                  {audit.emails?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {audit.emails.map((email) => (
+                        <a
+                          key={email}
+                          href={`mailto:${email}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-500/15 hover:bg-brand-500/25 text-[11px] text-brand-300"
+                        >
+                          <Mail className="w-3 h-3" /> {email}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-[11px] font-mono text-zinc-500">
                     HTTP {audit.status} · {audit.loadMs} ms{audit.title ? ` · ${audit.title}` : ""}
                   </p>

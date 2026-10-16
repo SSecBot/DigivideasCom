@@ -39,6 +39,7 @@ export interface WebsiteAudit {
   metaDescription?: string;
   hasViewport: boolean;
   socials: SocialLinks;
+  emails: string[];
   hasMetaPixel: boolean;
   hasGoogleAnalytics: boolean;
   hasGoogleTagManager: boolean;
@@ -89,4 +90,21 @@ export interface SavedLead {
 export interface LeadSearchResponse {
   leads: (PlaceLead & { analysis: LeadAnalysis })[];
   nextPageToken?: string;
+}
+
+export type LeadSource = "scraper" | "places-api";
+
+export type ScrapeJobStatus = "running" | "done" | "error" | "cancelled";
+
+/** State of a browser-based Google Maps scrape, as polled by the admin UI. */
+export interface ScrapeJobView {
+  id: string;
+  query: string;
+  status: ScrapeJobStatus;
+  progress: number;
+  message: string;
+  error?: string;
+  leads: (PlaceLead & { analysis: LeadAnalysis; audit?: WebsiteAudit })[];
+  startedAt: number;
+  finishedAt?: number;
 }

@@ -113,6 +113,47 @@ const SOCIAL_PATTERNS: Record<keyof SocialLinks, RegExp> = {
   x: /https?:\/\/(?:www\.)?(?:twitter|x)\.com\/(?!intent|share|home)([a-z0-9_]{2,15})/i,
 };
 
+const EMAIL_PATTERN = /[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,24}/g;
+const EMAIL_EXACT = /^[a-z0-9._%+-]{1,64}@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,24}$/;
+const BAD_EMAIL_PARTS = [
+  "sentry", "wixpress", "example.", "domain.com", "email.com", "yourdomain", "sizinsiteniz", "@2x", "@3x",
+  "godaddy", "schema.org", "w3.org", "jquery", "bootstrap", "localhost", "u00", "ornek.com",
+];
+const BAD_EMAIL_EXT = /\.(png|jpe?g|gif|webp|svg|css|js|ico|woff2?)$/;
+
+/** Cloudflare "email protection" obfuscation: hex string XOR'ed with its first byte. */
+function decodeCfEmail(hex: string): string {
+  const key = parseInt(hex.slice(0, 2), 16);
+  let out = "";
+  for (let i = 2; i < hex.length; i += 2) out += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ key);
+  return out;
+}
+
+/** Contact e-mails found on a page (mailto links, plain text, Cloudflare-protected), max 5. */
+export function extractEmails(html: string): string[] {
+  if (!html) return [];
+  const text = html.replace(/&#64;|&commat;|\[at\]|\(at\)/gi, "@");
+  const found: string[] = [];
+  for (const match of Array.from(text.matchAll(/mailto:([^"'?>\s]+)/gi))) {
+    try {
+      found.push(decodeURIComponent(match[1]));
+    } catch {
+      found.push(match[1]);
+    }
+  }
+  for (const match of Array.from(html.matchAll(/data-cfemail="([0-9a-fA-F]+)"/g))) found.push(decodeCfEmail(match[1]));
+  found.push(...(text.match(EMAIL_PATTERN) ?? []));
+
+  const result: string[] = [];
+  for (const raw of found) {
+    const email = raw.trim().replace(/^[.,;:]+|[.,;:]+$/g, "").toLowerCase();
+    if (!EMAIL_EXACT.test(email) || BAD_EMAIL_EXT.test(email)) continue;
+    if (BAD_EMAIL_PARTS.some((part) => email.includes(part))) continue;
+    if (!result.includes(email)) result.push(email);
+  }
+  return result.slice(0, 5);
+}
+
 /** Pure HTML analysis (unit-tested). */
 export function analyzeHtml(html: string): Omit<WebsiteAudit, "url" | "finalUrl" | "reachable" | "status" | "https" | "loadMs" | "checkedAt" | "error"> {
   const socials: SocialLinks = {};
@@ -131,6 +172,7 @@ export function analyzeHtml(html: string): Omit<WebsiteAudit, "url" | "finalUrl"
     metaDescription,
     hasViewport: /<meta[^>]+name=["']viewport["']/i.test(html),
     socials,
+    emails: extractEmails(html),
     hasMetaPixel: /connect\.facebook\.net\/[^"']*fbevents\.js|fbq\(\s*['"]init/i.test(html),
     hasGoogleAnalytics: /googletagmanager\.com\/gtag\/js\?id=G-|google-analytics\.com\/(analytics|ga)\.js|gtag\(\s*['"]config['"]\s*,\s*['"]G-/i.test(html),
     hasGoogleTagManager: /googletagmanager\.com\/gtm\.js|GTM-[A-Z0-9]{4,}/.test(html),
@@ -148,6 +190,7 @@ export async function auditWebsite(rawUrl: string): Promise<WebsiteAudit> {
     https: url.protocol === "https:",
     hasViewport: false,
     socials: {},
+    emails: [],
     hasMetaPixel: false,
     hasGoogleAnalytics: false,
     hasGoogleTagManager: false,
