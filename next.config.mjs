@@ -33,6 +33,8 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
+    // instrumentation.ts: backup on server start + daily automatic backups
+    instrumentationHook: true,
     // Headless browser for the free Google Maps lead search; must not be bundled
     serverComponentsExternalPackages: ["playwright-core"],
   },

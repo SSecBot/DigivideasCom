@@ -15,6 +15,7 @@ import {
 } from "@/lib/types/cms";
 import { defaultContentSnapshot } from "@/lib/data/initial-data";
 import { slugify } from "@/lib/utils/slugify";
+import { describeUnsupported, optimizeImage } from "@/lib/admin/image-optimize";
 
 /**
  * Admin-side CMS store. Edits are applied optimistically and then persisted
@@ -36,8 +37,13 @@ async function adminFetch<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export async function uploadImages(files: File[]): Promise<string[]> {
+  for (const file of files) {
+    const problem = describeUnsupported(file);
+    if (problem) throw new Error(problem);
+  }
+  const prepared = await Promise.all(files.map(optimizeImage));
   const form = new FormData();
-  files.forEach((file) => form.append("files", file));
+  prepared.forEach((file) => form.append("files", file));
   const response = await fetch("/api/admin/uploads", { method: "POST", body: form });
   const body = (await response.json().catch(() => ({}))) as { urls?: string[]; error?: string };
   if (!response.ok || !body.urls) throw new Error(body.error || "Görsel yüklenemedi");
@@ -59,6 +65,19 @@ function upsertBy<T extends { id: string; slug?: string }>(
   return prepend ? [build(undefined), ...items] : [...items, build(undefined)];
 }
 
+/**
+ * Slug that no *other* record uses. Previously a new item whose slug matched an
+ * existing one silently overwrote that item.
+ */
+export function uniqueSlug(base: string, items: { id: string; slug: string }[], selfId?: string): string {
+  const taken = new Set(items.filter((item) => item.id !== selfId).map((item) => item.slug));
+  const root = base || "icerik";
+  if (!taken.has(root)) return root;
+  let n = 2;
+  while (taken.has(`${root}-${n}`)) n += 1;
+  return `${root}-${n}`;
+}
+
 export function useAdminCMSStore() {
   const [content, setContent] = useState<ContentSnapshot>(defaultContentSnapshot);
   const [inquiries, setInquiries] = useState<ContactInquiry[]>([]);
@@ -66,6 +85,10 @@ export function useAdminCMSStore() {
   const [syncError, setSyncError] = useState("");
   const contentRef = useRef(content);
   contentRef.current = content;
+  // Until the server copy is loaded, local state is only the bundled defaults:
+  // saving then would overwrite the real content on the server.
+  const loadedRef = useRef(false);
+  loadedRef.current = isLoaded;
 
   const reload = useCallback(async () => {
     try {
@@ -86,29 +109,37 @@ export function useAdminCMSStore() {
   }, [reload]);
 
   const persistCollection = useCallback(
-    <K extends ContentCollection>(collection: K, items: ContentSnapshot[K]) => {
+    async <K extends ContentCollection>(collection: K, items: ContentSnapshot[K]): Promise<boolean> => {
+      if (!loadedRef.current) {
+        setSyncError("Veriler sunucudan henüz yüklenmedi; birkaç saniye sonra tekrar deneyin.");
+        return false;
+      }
       setContent((prev) => ({ ...prev, [collection]: items }));
-      adminFetch<ContentSnapshot>(`/api/admin/content/${collection}`, {
-        method: "PUT",
-        body: JSON.stringify({ items }),
-      })
-        .then(setContent)
-        .catch((error: Error) => {
-          setSyncError(error.message);
-          reload();
-        });
+      try {
+        setContent(
+          await adminFetch<ContentSnapshot>(`/api/admin/content/${collection}`, {
+            method: "PUT",
+            body: JSON.stringify({ items }),
+          })
+        );
+        return true;
+      } catch (error) {
+        setSyncError((error as Error).message);
+        reload();
+        return false;
+      }
     },
     [reload]
   );
 
   // --- SERVICES ---
-  const saveService = (service: Partial<ServiceItem> & { title: string }) => {
+  const saveService = async (service: Partial<ServiceItem> & { title: string }) => {
     const { services } = contentRef.current;
-    const slug = slugify(service.slug || service.title);
+    const slug = uniqueSlug(slugify(service.slug || service.title), contentRef.current.services, service.id);
     const now = new Date().toISOString();
     const updated = upsertBy(
       services,
-      (s) => s.id === service.id || s.slug === slug,
+      (s) => Boolean(service.id) && s.id === service.id,
       (existing) =>
         existing
           ? ({ ...existing, ...service, slug, tags: service.tags || existing.tags || [], updatedAt: now } as ServiceItem)
@@ -125,28 +156,27 @@ export function useAdminCMSStore() {
               heroImage: service.heroImage || "/assets/services/service-performans.webp",
               videoUrl: service.videoUrl || "",
               tags: service.tags || ["Dijital Reklam"],
-              metaTitle: service.metaTitle || service.title,
-              metaDescription: service.metaDescription || service.shortDesc,
+              metaTitle: service.metaTitle || undefined,
+              metaDescription: service.metaDescription || undefined,
               status: service.status || "published",
               order: service.order || services.length + 1,
               updatedAt: now,
             }
     );
-    persistCollection("services", updated);
-    return slug;
+    return (await persistCollection("services", updated)) ? slug : null;
   };
 
   const deleteService = (id: string) =>
     persistCollection("services", contentRef.current.services.filter((s) => s.id !== id));
 
   // --- CUSTOMERS ---
-  const saveCustomer = (customer: Partial<CustomerItem> & { name: string }) => {
+  const saveCustomer = async (customer: Partial<CustomerItem> & { name: string }) => {
     const { customers } = contentRef.current;
-    const slug = slugify(customer.slug || customer.name);
+    const slug = uniqueSlug(slugify(customer.slug || customer.name), contentRef.current.customers, customer.id);
     const now = new Date().toISOString();
     const updated = upsertBy(
       customers,
-      (c) => c.id === customer.id || c.slug === slug,
+      (c) => Boolean(customer.id) && c.id === customer.id,
       (existing) =>
         existing
           ? ({
@@ -175,28 +205,27 @@ export function useAdminCMSStore() {
               galleryImages: customer.galleryImages || [],
               liveUrl: customer.liveUrl,
               tags: customer.tags || ["Dijital Pazarlama"],
-              metaTitle: customer.metaTitle || `${customer.name} Vaka Analizi`,
-              metaDescription: customer.metaDescription || customer.summary,
+              metaTitle: customer.metaTitle || undefined,
+              metaDescription: customer.metaDescription || undefined,
               status: customer.status || "published",
               featured: customer.featured ?? true,
               updatedAt: now,
             }
     );
-    persistCollection("customers", updated);
-    return slug;
+    return (await persistCollection("customers", updated)) ? slug : null;
   };
 
   const deleteCustomer = (id: string) =>
     persistCollection("customers", contentRef.current.customers.filter((c) => c.id !== id));
 
   // --- BLOG ---
-  const saveBlogPost = (post: Partial<BlogPost> & { title: string }) => {
+  const saveBlogPost = async (post: Partial<BlogPost> & { title: string }) => {
     const { blogPosts } = contentRef.current;
-    const slug = slugify(post.slug || post.title);
+    const slug = uniqueSlug(slugify(post.slug || post.title), contentRef.current.blogPosts, post.id);
     const today = new Date().toISOString().split("T")[0];
     const updated = upsertBy(
       blogPosts,
-      (b) => b.id === post.id || b.slug === slug,
+      (b) => Boolean(post.id) && b.id === post.id,
       (existing) =>
         existing
           ? ({ ...existing, ...post, slug, tags: post.tags || existing.tags || [] } as BlogPost)
@@ -217,25 +246,24 @@ export function useAdminCMSStore() {
               readTimeMinutes: post.readTimeMinutes || 4,
               tags: post.tags || ["Dijital Reklam", "Trendler"],
               publishedAt: post.publishedAt || today,
-              metaTitle: post.metaTitle || post.title,
-              metaDescription: post.metaDescription || post.excerpt,
+              metaTitle: post.metaTitle || undefined,
+              metaDescription: post.metaDescription || undefined,
               status: post.status || "published",
               featured: post.featured ?? false,
             }
     );
-    persistCollection("blogPosts", updated);
-    return slug;
+    return (await persistCollection("blogPosts", updated)) ? slug : null;
   };
 
   const deleteBlogPost = (id: string) =>
     persistCollection("blogPosts", contentRef.current.blogPosts.filter((b) => b.id !== id));
 
   // --- TAGS ---
-  const saveTag = (tag: Partial<TagItem> & { name: string }) => {
-    const slug = slugify(tag.slug || tag.name);
+  const saveTag = async (tag: Partial<TagItem> & { name: string }) => {
+    const slug = uniqueSlug(slugify(tag.slug || tag.name), contentRef.current.tags, tag.id);
     const updated = upsertBy(
       contentRef.current.tags,
-      (t) => t.id === tag.id || t.slug === slug,
+      (t) => Boolean(tag.id) && t.id === tag.id,
       (existing) =>
         existing
           ? ({ ...existing, ...tag, slug } as TagItem)
@@ -248,20 +276,19 @@ export function useAdminCMSStore() {
             },
       false
     );
-    persistCollection("tags", updated);
-    return slug;
+    return (await persistCollection("tags", updated)) ? slug : null;
   };
 
   const deleteTag = (id: string) =>
     persistCollection("tags", contentRef.current.tags.filter((t) => t.id !== id));
 
   // --- FAQ ---
-  const saveFAQ = (faq: Partial<FAQItem> & { question: string; answer: string }) => {
+  const saveFAQ = async (faq: Partial<FAQItem> & { question: string; answer: string }) => {
     const { faqs } = contentRef.current;
     const now = new Date().toISOString();
     const updated = upsertBy(
       faqs,
-      (f) => f.id === faq.id,
+      (f) => Boolean(faq.id) && f.id === faq.id,
       (existing) =>
         existing
           ? ({ ...existing, ...faq, updatedAt: now } as FAQItem)
@@ -276,20 +303,19 @@ export function useAdminCMSStore() {
             },
       false
     );
-    persistCollection("faqs", updated);
-    return faq.id;
+    return persistCollection("faqs", updated);
   };
 
   const deleteFAQ = (id: string) =>
     persistCollection("faqs", contentRef.current.faqs.filter((f) => f.id !== id));
 
   // --- PROMOS (Reklamlarımız) ---
-  const savePromo = (promo: Partial<PromoItem> & { brand: string; title: string; url: string }) => {
+  const savePromo = async (promo: Partial<PromoItem> & { brand: string; title: string; url: string }) => {
     const { promos } = contentRef.current;
     const now = new Date().toISOString();
     const updated = upsertBy(
       promos,
-      (p) => p.id === promo.id,
+      (p) => Boolean(promo.id) && p.id === promo.id,
       (existing) =>
         existing
           ? ({ ...existing, ...promo, updatedAt: now } as PromoItem)
@@ -309,25 +335,33 @@ export function useAdminCMSStore() {
             },
       false
     );
-    persistCollection("promos", updated);
+    return persistCollection("promos", updated);
   };
 
   const deletePromo = (id: string) =>
     persistCollection("promos", contentRef.current.promos.filter((p) => p.id !== id));
 
   // --- NARRATIVE ---
-  const saveNarrative = (patch: Partial<SiteNarrative>) => {
+  const saveNarrative = async (patch: Partial<SiteNarrative>): Promise<boolean> => {
+    if (!loadedRef.current) {
+      setSyncError("Veriler sunucudan henüz yüklenmedi; birkaç saniye sonra tekrar deneyin.");
+      return false;
+    }
     const narrative = { ...contentRef.current.narrative, ...patch };
     setContent((prev) => ({ ...prev, narrative }));
-    adminFetch<ContentSnapshot>("/api/admin/content/narrative", {
-      method: "PUT",
-      body: JSON.stringify({ narrative }),
-    })
-      .then(setContent)
-      .catch((error: Error) => {
-        setSyncError(error.message);
-        reload();
-      });
+    try {
+      setContent(
+        await adminFetch<ContentSnapshot>("/api/admin/content/narrative", {
+          method: "PUT",
+          body: JSON.stringify({ narrative }),
+        })
+      );
+      return true;
+    } catch (error) {
+      setSyncError((error as Error).message);
+      reload();
+      return false;
+    }
   };
 
   // --- INQUIRIES ---

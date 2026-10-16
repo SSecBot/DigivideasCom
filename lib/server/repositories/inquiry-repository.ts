@@ -24,6 +24,19 @@ export const inquiryRepository = {
     });
   },
 
+  /** Adds inquiries saved by the old browser-only version; existing ids are left untouched. */
+  async importMany(items: ContactInquiry[]): Promise<number> {
+    return withFileLock(INQUIRIES_FILE(), async () => {
+      const all = await readJsonFile<ContactInquiry[]>(INQUIRIES_FILE(), []);
+      const known = new Set(all.map((inquiry) => inquiry.id));
+      const fresh = items.filter((inquiry) => !known.has(inquiry.id));
+      if (fresh.length === 0) return 0;
+      const merged = [...all, ...fresh].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, MAX_STORED);
+      await writeJsonFile(INQUIRIES_FILE(), merged);
+      return fresh.length;
+    });
+  },
+
   /** Soft delete: the record stays on disk with a deletedAt timestamp. */
   async softDelete(id: string): Promise<boolean> {
     return withFileLock(INQUIRIES_FILE(), async () => {

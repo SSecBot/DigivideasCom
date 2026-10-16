@@ -47,6 +47,11 @@ async function prune(now: number) {
   );
 }
 
+/** Drops in-memory caches after the data folder was replaced (backup restore). */
+export function resetAnalyticsCache() {
+  visitorIndex = null;
+}
+
 export const analyticsRepository = {
   async append(event: StoredAnalyticsEvent): Promise<void> {
     const file = dayFile(localDateKey(event.ts));

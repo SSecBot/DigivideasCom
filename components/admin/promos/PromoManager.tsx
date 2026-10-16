@@ -9,7 +9,7 @@ type PromoDraft = Partial<PromoItem> & { brand: string; title: string; url: stri
 
 interface PromoManagerProps {
   promos: PromoItem[];
-  onSave: (promo: PromoDraft) => void;
+  onSave: (promo: PromoDraft) => Promise<boolean>;
   onDelete: (id: string) => void;
   onUpload: (e: React.ChangeEvent<HTMLInputElement>, onSuccess: (url: string) => void) => void;
 }
@@ -33,14 +33,15 @@ export function PromoManager({ promos, onSave, onDelete, onUpload }: PromoManage
   const [editing, setEditing] = useState<PromoDraft | null>(null);
   const [error, setError] = useState("");
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
     if (!/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(editing.url.trim())) {
       setError("Bağlantı https:// ile başlayan geçerli bir adres olmalı");
       return;
     }
-    onSave({ ...editing, url: editing.url.trim(), highlights: (editing.highlights ?? []).filter(Boolean) });
+    const ok = await onSave({ ...editing, url: editing.url.trim(), highlights: (editing.highlights ?? []).filter(Boolean) });
+    if (!ok) return;
     setEditing(null);
     setError("");
   };
