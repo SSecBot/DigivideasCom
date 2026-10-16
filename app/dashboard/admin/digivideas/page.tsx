@@ -50,18 +50,25 @@ import {
   Wallet,
   CalendarDays,
   FileSignature,
+  DatabaseBackup,
+  History,
 } from "lucide-react";
 import { AdminAuthGuard, adminLogout } from "@/components/admin/AdminAuthGuard";
 import { useAdminCMSStore, uploadImages } from "@/lib/store/admin-cms-store";
 import { AnalyticsDashboard } from "@/components/admin/analytics/AnalyticsDashboard";
 import { LeadFinder } from "@/components/admin/leads/LeadFinder";
 import { PromoManager } from "@/components/admin/promos/PromoManager";
-import { CrmProvider } from "@/components/admin/crm/CrmProvider";
+import { CrmProvider, useCrm } from "@/components/admin/crm/CrmProvider";
+import { BackupPanel } from "@/components/admin/backups/BackupPanel";
+import { useLegacyData } from "@/components/admin/backups/LegacyImport";
+import { legacySummary } from "@/lib/admin/legacy-import";
 import { ClientsPanel } from "@/components/admin/crm/ClientsPanel";
 import { ProposalsPanel } from "@/components/admin/crm/ProposalsPanel";
 import { PaymentsPanel } from "@/components/admin/crm/PaymentsPanel";
 import { CalendarPanel } from "@/components/admin/crm/CalendarPanel";
 import { toWhatsAppDigits } from "@/lib/utils/sanitize";
+import { ListInput } from "@/components/admin/ListInput";
+import { SeoFields } from "@/components/admin/SeoFields";
 import {
   ServiceItem,
   CustomerItem,
@@ -87,7 +94,8 @@ type ActiveTab =
   | "tags"
   | "faqs"
   | "inquiries"
-  | "settings";
+  | "settings"
+  | "backups";
 
 // The CMS store must only mount after login: AdminDashboard is rendered inside the guard,
 // so its data requests are made with a valid session.
@@ -128,7 +136,10 @@ function AdminDashboard() {
     deleteFAQ,
     saveNarrative,
     resetToFactoryDefaults,
+    reload,
   } = useAdminCMSStore();
+  const { reload: reloadCrm } = useCrm();
+  const { legacy, importedAt: legacyImportedAt } = useLegacyData();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [successToast, setSuccessToast] = useState("");
@@ -174,6 +185,7 @@ function AdminDashboard() {
   };
 
   const [uploadError, setUploadError] = useState("");
+  const [uploadingCount, setUploadingCount] = useState(0);
 
   // Uploads the selected image(s) to the server and returns their public URLs
   const handleFileUpload = (
@@ -183,12 +195,15 @@ function AdminDashboard() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    setUploadError("");
+    setUploadingCount((n) => n + 1);
     uploadImages([file])
       .then(([url]) => {
         onSuccess(url);
         triggerToast("Görsel başarıyla yüklendi ve bağlandı!");
       })
-      .catch((error: Error) => setUploadError(error.message));
+      .catch((error: Error) => setUploadError(error.message))
+      .finally(() => setUploadingCount((n) => n - 1));
   };
 
   const handleMultiFileUpload = (
@@ -198,12 +213,15 @@ function AdminDashboard() {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (files.length === 0) return;
+    setUploadError("");
+    setUploadingCount((n) => n + 1);
     uploadImages(files)
       .then((urls) => {
         onSuccess(urls);
         triggerToast(`${urls.length} görsel başarıyla yüklendi ve eklendi!`);
       })
-      .catch((error: Error) => setUploadError(error.message));
+      .catch((error: Error) => setUploadError(error.message))
+      .finally(() => setUploadingCount((n) => n - 1));
   };
 
   // --- SERVICE MODAL HANDLERS ---
@@ -227,10 +245,12 @@ function AdminDashboard() {
     setServiceModalOpen(true);
   };
 
-  const handleSaveService = (e: React.FormEvent) => {
+  const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingService?.title) return;
-    const generatedSlug = saveService(editingService as any);
+    // The modal stays open when the server rejects the save, so nothing typed is lost
+    const generatedSlug = await saveService(editingService as any);
+    if (!generatedSlug) return;
     setServiceModalOpen(false);
     setEditingService(null);
     triggerToast(`Hizmet kaydedildi! Canlı rota: /services/${generatedSlug}`);
@@ -266,10 +286,12 @@ function AdminDashboard() {
     setCustomerModalOpen(true);
   };
 
-  const handleSaveCustomer = (e: React.FormEvent) => {
+  const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCustomer?.name) return;
-    const generatedSlug = saveCustomer(editingCustomer as any);
+    // The modal stays open when the server rejects the save, so nothing typed is lost
+    const generatedSlug = await saveCustomer(editingCustomer as any);
+    if (!generatedSlug) return;
     setCustomerModalOpen(false);
     setEditingCustomer(null);
     triggerToast(`Müşteri vaka analizi kaydedildi! Canlı rota: /customers/${generatedSlug}`);
@@ -299,10 +321,12 @@ function AdminDashboard() {
     setBlogModalOpen(true);
   };
 
-  const handleSaveBlog = (e: React.FormEvent) => {
+  const handleSaveBlog = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBlog?.title) return;
-    const generatedSlug = saveBlogPost(editingBlog as any);
+    // The modal stays open when the server rejects the save, so nothing typed is lost
+    const generatedSlug = await saveBlogPost(editingBlog as any);
+    if (!generatedSlug) return;
     setBlogModalOpen(false);
     setEditingBlog(null);
     triggerToast(`Makale yayınlandı! Canlı rota: /blog/${generatedSlug}`);
@@ -318,10 +342,12 @@ function AdminDashboard() {
     setTagModalOpen(true);
   };
 
-  const handleSaveTag = (e: React.FormEvent) => {
+  const handleSaveTag = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTag?.name) return;
-    const generatedSlug = saveTag(editingTag as any);
+    // The modal stays open when the server rejects the save, so nothing typed is lost
+    const generatedSlug = await saveTag(editingTag as any);
+    if (!generatedSlug) return;
     setTagModalOpen(false);
     setEditingTag(null);
     triggerToast(`Etiket kaydedildi: #${generatedSlug}`);
@@ -339,19 +365,19 @@ function AdminDashboard() {
     setFaqModalOpen(true);
   };
 
-  const handleSaveFAQ = (e: React.FormEvent) => {
+  const handleSaveFAQ = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingFAQ?.question || !editingFAQ?.answer) return;
-    saveFAQ(editingFAQ as any);
+    if (!(await saveFAQ(editingFAQ as any))) return;
     setFaqModalOpen(false);
     setEditingFAQ(null);
     triggerToast("SSS sorusu kaydedildi!");
   };
 
   // --- SETTINGS HANDLER ---
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveNarrative(settingsState);
+    if (!(await saveNarrative(settingsState))) return;
     triggerToast("Site ayarları, kurumsal kimlik ve logolar güncellendi!");
   };
 
@@ -363,6 +389,16 @@ function AdminDashboard() {
           <div className="fixed top-4 right-4 left-4 sm:left-auto z-50 bg-slate-900 border border-brand-500/60 shadow-glow-orange rounded-2xl p-4 flex items-center gap-3 text-sm text-white animate-slideIn">
             <CheckCircle className="w-5 h-5 text-brand-400 flex-shrink-0" />
             <span className="font-medium">{successToast}</span>
+          </div>
+        )}
+
+        {uploadingCount > 0 && (
+          <div
+            role="status"
+            className="fixed bottom-4 right-4 left-4 sm:left-auto z-[60] bg-slate-900 border border-brand-500/50 rounded-2xl px-4 py-3 flex items-center gap-3 text-sm text-white shadow-glow-orange"
+          >
+            <span className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            Görsel hazırlanıyor ve yükleniyor…
           </div>
         )}
 
@@ -634,12 +670,23 @@ function AdminDashboard() {
                 <Settings className="w-4 h-4 flex-shrink-0" />
                 <span>Site Ayarları & Logolar</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab("backups")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "backups"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <DatabaseBackup className="w-4 h-4 flex-shrink-0" />
+                <span>Yedekleme</span>
+              </button>
             </nav>
 
             <div className="hidden md:block pt-6 mt-6 border-t border-white/10">
               <button
                 onClick={() => {
-                  if (confirm("Tüm değişiklikler sıfırlanıp fabrika varsayılanlarına dönecek. Emin misiniz?")) {
+                  if (confirm("Tüm içerik değişiklikleri sıfırlanıp fabrika varsayılanlarına dönecek. Öncesinde otomatik yedek alınır (Yedekleme sekmesinden geri dönebilirsiniz). Emin misiniz?")) {
                     resetToFactoryDefaults();
                     triggerToast("Veritabanı başlangıç ayarlarına sıfırlandı!");
                   }
@@ -658,6 +705,18 @@ function AdminDashboard() {
             {activeTab === "overview" && (
               <div className="space-y-8">
                 <div>
+                  {legacy && !legacyImportedAt && (
+                    <button
+                      onClick={() => setActiveTab("backups")}
+                      className="w-full mb-6 p-4 rounded-2xl bg-amber-400/10 border border-amber-400/40 text-left flex items-start gap-3 hover:bg-amber-400/15"
+                    >
+                      <History className="w-5 h-5 text-amber-300 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs text-zinc-200">
+                        <strong className="block text-sm text-white">Eski panelden kalma değişiklikler bu tarayıcıda duruyor</strong>
+                        {legacySummary(legacy).join(", ")} henüz sunucuda değil. Kaybolmamaları için Yedekleme sekmesinden aktarın →
+                      </span>
+                    </button>
+                  )}
                   <h2 className="text-2xl font-bold text-white tracking-tight">Genel Bakış & Kokpit</h2>
                   <p className="text-xs text-zinc-400 font-mono mt-1">
                     digivideas dijital reklam ajansı içerik yönetim sistemi canlı durumu.
@@ -765,15 +824,25 @@ function AdminDashboard() {
             {activeTab === "promos" && (
               <PromoManager
                 promos={promos}
-                onSave={(promo) => {
-                  savePromo(promo);
-                  triggerToast("Reklam kaydedildi! Ana sayfada yayında.");
+                onSave={async (promo) => {
+                  const ok = await savePromo(promo);
+                  if (ok) triggerToast("Reklam kaydedildi! Ana sayfada yayında.");
+                  return ok;
                 }}
                 onDelete={(id) => {
                   deletePromo(id);
                   triggerToast("Reklam silindi.");
                 }}
                 onUpload={handleFileUpload}
+              />
+            )}
+
+            {activeTab === "backups" && (
+              <BackupPanel
+                onDataChanged={() => {
+                  reload();
+                  reloadCrm();
+                }}
               />
             )}
 
@@ -1335,7 +1404,7 @@ function AdminDashboard() {
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/gif"
                             className="hidden"
-                            onChange={(e) => handleFileUpload(e, (url) => setSettingsState({ ...settingsState, logoUrl: url }))}
+                            onChange={(e) => handleFileUpload(e, (url) => setSettingsState((prev) => ({ ...prev, logoUrl: url })))}
                           />
                         </label>
                       </div>
@@ -1584,7 +1653,7 @@ function AdminDashboard() {
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/gif"
                         className="hidden"
-                        onChange={(e) => handleFileUpload(e, (url) => setEditingService({ ...editingService, heroImage: url }))}
+                        onChange={(e) => handleFileUpload(e, (url) => setEditingService((prev) => (prev ? { ...prev, heroImage: url } : prev)))}
                       />
                     </label>
                   </div>
@@ -1592,10 +1661,9 @@ function AdminDashboard() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-mono text-zinc-300">İçerik Etiketleri (Virgülle ayırın)</label>
-                  <input
-                    type="text"
-                    value={editingService.tags?.join(", ") || ""}
-                    onChange={(e) => setEditingService({ ...editingService, tags: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                  <ListInput
+                    value={editingService.tags}
+                    onChange={(items) => setEditingService((prev) => (prev ? { ...prev, tags: items } : prev))}
                     placeholder="Meta Ads, Reels, İzmir Ajans"
                     className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none font-mono"
                   />
@@ -1603,10 +1671,9 @@ function AdminDashboard() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-mono text-zinc-300">Öne Çıkan Özellikler (Virgülle ayırın)</label>
-                  <input
-                    type="text"
-                    value={editingService.features?.join(", ") || ""}
-                    onChange={(e) => setEditingService({ ...editingService, features: e.target.value.split(",").map(s => s.trim()) })}
+                  <ListInput
+                    value={editingService.features}
+                    onChange={(items) => setEditingService((prev) => (prev ? { ...prev, features: items } : prev))}
                     placeholder="4K Video Kurgusu, Aylık Planlama, DM Moderasyonu"
                     className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none"
                   />
@@ -1614,10 +1681,9 @@ function AdminDashboard() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-mono text-zinc-300">Paket Çıktıları (Virgülle ayırın)</label>
-                  <input
-                    type="text"
-                    value={editingService.deliverables?.join(", ") || ""}
-                    onChange={(e) => setEditingService({ ...editingService, deliverables: e.target.value.split(",").map(s => s.trim()) })}
+                  <ListInput
+                    value={editingService.deliverables}
+                    onChange={(items) => setEditingService((prev) => (prev ? { ...prev, deliverables: items } : prev))}
                     placeholder="Özgün Grafik Arşivi, Canlı Rapor Paneli, Trend Çekimleri"
                     className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none"
                   />
@@ -1633,6 +1699,15 @@ function AdminDashboard() {
                   />
                 </div>
 
+                <SeoFields
+                  idPrefix="service"
+                  metaTitle={editingService.metaTitle}
+                  metaDescription={editingService.metaDescription}
+                  fallbackTitle={editingService.title}
+                  fallbackDescription={editingService.shortDesc}
+                  onChange={(patch) => setEditingService((prev) => (prev ? { ...prev, ...patch } : prev))}
+                />
+
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
                   <button
                     type="button"
@@ -1645,7 +1720,7 @@ function AdminDashboard() {
                     type="submit"
                     className="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs shadow-glow-orange"
                   >
-                    Kaydet & Yayınla
+                    {editingService.status === "draft" ? "Taslak olarak kaydet" : "Kaydet & Yayınla"}
                   </button>
                 </div>
               </form>
@@ -1753,7 +1828,7 @@ function AdminDashboard() {
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/gif"
                         className="hidden"
-                        onChange={(e) => handleFileUpload(e, (url) => setEditingCustomer({ ...editingCustomer, heroImage: url }))}
+                        onChange={(e) => handleFileUpload(e, (url) => setEditingCustomer((prev) => (prev ? { ...prev, heroImage: url } : prev)))}
                       />
                     </label>
                   </div>
@@ -1761,10 +1836,9 @@ function AdminDashboard() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-mono text-zinc-300">İçerik Etiketleri (Virgülle ayırın)</label>
-                  <input
-                    type="text"
-                    value={editingCustomer.tags?.join(", ") || ""}
-                    onChange={(e) => setEditingCustomer({ ...editingCustomer, tags: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                  <ListInput
+                    value={editingCustomer.tags}
+                    onChange={(items) => setEditingCustomer((prev) => (prev ? { ...prev, tags: items } : prev))}
                     placeholder="Gastronomi, Meta Ads, Reels"
                     className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none font-mono"
                   />
@@ -1982,11 +2056,14 @@ function AdminDashboard() {
                                   accept="image/png,image/jpeg,image/webp,image/gif"
                                   className="hidden"
                                   onChange={(e) =>
-                                    handleFileUpload(e, (url) => {
-                                      const updatedGallery = [...(editingCustomer.galleryImages || [])];
-                                      updatedGallery[idx] = url;
-                                      setEditingCustomer({ ...editingCustomer, galleryImages: updatedGallery });
-                                    })
+                                    handleFileUpload(e, (url) =>
+                                      setEditingCustomer((prev) => {
+                                        if (!prev) return prev;
+                                        const updatedGallery = [...(prev.galleryImages || [])];
+                                        updatedGallery[idx] = url;
+                                        return { ...prev, galleryImages: updatedGallery };
+                                      })
+                                    )
                                   }
                                 />
                               </label>
@@ -2079,15 +2156,25 @@ function AdminDashboard() {
                         multiple
                         className="hidden"
                         onChange={(e) =>
-                          handleMultiFileUpload(e, (urls) => {
-                            const updatedGallery = [...(editingCustomer.galleryImages || []), ...urls];
-                            setEditingCustomer({ ...editingCustomer, galleryImages: updatedGallery });
-                          })
+                          handleMultiFileUpload(e, (urls) =>
+                            setEditingCustomer((prev) =>
+                              prev ? { ...prev, galleryImages: [...(prev.galleryImages || []), ...urls] } : prev
+                            )
+                          )
                         }
                       />
                     </label>
                   </div>
                 </div>
+
+                <SeoFields
+                  idPrefix="customer"
+                  metaTitle={editingCustomer.metaTitle}
+                  metaDescription={editingCustomer.metaDescription}
+                  fallbackTitle={editingCustomer.name ? `${editingCustomer.name} Vaka Analizi` : undefined}
+                  fallbackDescription={editingCustomer.summary}
+                  onChange={(patch) => setEditingCustomer((prev) => (prev ? { ...prev, ...patch } : prev))}
+                />
 
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
                   <button
@@ -2101,7 +2188,7 @@ function AdminDashboard() {
                     type="submit"
                     className="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs shadow-glow-orange"
                   >
-                    Kaydet & Yayınla
+                    {editingCustomer.status === "draft" ? "Taslak olarak kaydet" : "Kaydet & Yayınla"}
                   </button>
                 </div>
               </form>
@@ -2168,7 +2255,7 @@ function AdminDashboard() {
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/gif"
                         className="hidden"
-                        onChange={(e) => handleFileUpload(e, (url) => setEditingBlog({ ...editingBlog, coverImage: url }))}
+                        onChange={(e) => handleFileUpload(e, (url) => setEditingBlog((prev) => (prev ? { ...prev, coverImage: url } : prev)))}
                       />
                     </label>
                   </div>
@@ -2176,13 +2263,58 @@ function AdminDashboard() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-mono text-zinc-300">İçerik Etiketleri (Virgülle ayırın)</label>
-                  <input
-                    type="text"
-                    value={editingBlog.tags?.join(", ") || ""}
-                    onChange={(e) => setEditingBlog({ ...editingBlog, tags: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                  <ListInput
+                    value={editingBlog.tags}
+                    onChange={(items) => setEditingBlog((prev) => (prev ? { ...prev, tags: items } : prev))}
                     placeholder="Yapay Zeka, Meta Ads, 2026 Trendleri"
                     className="w-full bg-slate-950 border border-white/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none font-mono"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <label htmlFor="blog-status" className="text-xs font-mono text-zinc-300">Yayın durumu</label>
+                    <select
+                      id="blog-status"
+                      value={editingBlog.status || "published"}
+                      onChange={(e) => setEditingBlog({ ...editingBlog, status: e.target.value as BlogPost["status"] })}
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    >
+                      <option value="published">Yayında</option>
+                      <option value="draft">Taslak (gizli)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="blog-date" className="text-xs font-mono text-zinc-300">Yayın tarihi</label>
+                    <input
+                      id="blog-date"
+                      type="date"
+                      value={editingBlog.publishedAt || new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setEditingBlog({ ...editingBlog, publishedAt: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="blog-read" className="text-xs font-mono text-zinc-300">Okuma süresi (dk)</label>
+                    <input
+                      id="blog-read"
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={editingBlog.readTimeMinutes ?? 4}
+                      onChange={(e) => setEditingBlog({ ...editingBlog, readTimeMinutes: Number(e.target.value) || 1 })}
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                  <label className="flex items-end gap-2 pb-2 text-xs text-zinc-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBlog.featured ?? false}
+                      onChange={(e) => setEditingBlog({ ...editingBlog, featured: e.target.checked })}
+                      className="accent-orange-500 w-4 h-4"
+                    />
+                    Öne çıkan makale
+                  </label>
                 </div>
 
                 <div className="space-y-1">
@@ -2207,6 +2339,15 @@ function AdminDashboard() {
                   />
                 </div>
 
+                <SeoFields
+                  idPrefix="blog"
+                  metaTitle={editingBlog.metaTitle}
+                  metaDescription={editingBlog.metaDescription}
+                  fallbackTitle={editingBlog.title}
+                  fallbackDescription={editingBlog.excerpt}
+                  onChange={(patch) => setEditingBlog((prev) => (prev ? { ...prev, ...patch } : prev))}
+                />
+
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
                   <button
                     type="button"
@@ -2219,7 +2360,7 @@ function AdminDashboard() {
                     type="submit"
                     className="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs shadow-glow-orange"
                   >
-                    Kaydet & Yayınla
+                    {editingBlog.status === "draft" ? "Taslak olarak kaydet" : "Kaydet & Yayınla"}
                   </button>
                 </div>
               </form>

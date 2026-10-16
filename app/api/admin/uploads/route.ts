@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
   const urls: string[] = [];
   for (const file of files) {
-    if (file.size > MAX_UPLOAD_BYTES) return jsonError(`${file.name} 5 MB sınırını aşıyor`, 413);
+    if (file.size > MAX_UPLOAD_BYTES) return jsonError(`${file.name} 15 MB sınırını aşıyor`, 413);
     const bytes = new Uint8Array(await file.arrayBuffer());
     const ext = detectImageExtension(bytes);
     if (!ext) return jsonError(`${file.name} desteklenmeyen biçimde (PNG, JPG, WEBP, GIF)`, 415);

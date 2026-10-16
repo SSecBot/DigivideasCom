@@ -207,7 +207,33 @@ pnpm exec playwright-core install --with-deps chromium
 
 ---
 
-## ❓ 6. Sıkça Sorulan Sorular (SSS)
+## 💾 6. Yedekleme ve Güvenli Güncelleme
+
+### Güncellemeyi her zaman bu komutla yapın (VPS)
+```bash
+cd /var/www/digivideas
+bash scripts/guncelle.sh
+```
+Betik sırasıyla: **(1)** tüm verileri `data/backups/` içine yedekler (`guncelleme-oncesi`), **(2)** yeni kodu çeker,
+**(3)** derler, **(4)** siteyi yeniden başlatır. `data/` klasörüne (panelden yapılan değişikliklere) dokunmaz.
+Bir adım hata verirse durur; yedek zaten alınmıştır.
+
+### Otomatik yedekler
+- Sunucu her başladığında (`sunucu-baslangici`) ve her gün bir kez (`gunluk`) yedek alınır.
+- "Verileri Sıfırla" ve "Geri yükle" işlemlerinden önce mevcut durum otomatik yedeklenir.
+- Panelde **Yedekleme** sekmesinden: elle yedek alma, indirme, geri yükleme ve bilgisayardan yedek yükleme.
+- Elle komutla yedek: `pnpm backup` (veya `node scripts/backup-data.mjs`).
+- Önemli: yedekler sunucunun kendi diskindedir. Haftada bir **İndir** ile bilgisayarınıza da kopya alın.
+
+### Eski sürümden geçiş (ilk güncelleme)
+İlk sürümde panel değişiklikleri sunucuda değil, **değişikliği yapan tarayıcıda** saklanıyordu.
+Güncellemeden sonra panele **değişiklikleri yaptığınız bilgisayar ve tarayıcıyla** girin:
+Genel Bakış'ta "Eski panelden kalma değişiklikler" uyarısı çıkar → **Yedekleme → Yedekle ve sunucuya aktar**.
+Aktarım öncesinde veriler bilgisayarınıza indirilir ve sunucuda yedek alınır; tarayıcıdaki eski veri silinmez.
+
+---
+
+## ❓ 7. Sıkça Sorulan Sorular (SSS)
 
 ### S: En ucuz ve en sorunsuz yöntem hangisidir?
 **C:** Site artık verilerini sunucuda sakladığı için kalıcı diski olan bir **VPS** (Yöntem 3) veya **Node.js destekli cPanel** önerilir. Vercel ancak veri katmanı bir veritabanına taşındıktan sonra kullanılabilir (bkz. Bölüm 5).
@@ -217,4 +243,4 @@ pnpm exec playwright-core install --with-deps chromium
 
 ### S: Kaynak kodlarda güncelleme yaptığımda canlı siteye nasıl yansır?
 - **Vercel kullanıyorsanız:** GitHub'a kod yüklediğiniz an 30 saniye içinde otomatik olarak canlıya geçer (Sıfır kesinti).
-- **VPS kullanıyorsanız:** Sunucuda `git pull && pnpm install && pnpm build && pm2 restart digivideas` komutunu çalıştırmanız yeterlidir (`data/` klasörü korunur).
+- **VPS kullanıyorsanız:** Sunucuda `bash scripts/guncelle.sh` komutunu çalıştırın: önce tüm veriler yedeklenir, sonra güncellenir (`data/` klasörü korunur).

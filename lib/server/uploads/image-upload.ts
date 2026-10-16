@@ -3,7 +3,7 @@
  * and SVG is intentionally not accepted because it can carry scripts.
  */
 
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 export const IMAGE_CONTENT_TYPES: Record<string, string> = {
   png: "image/png",
