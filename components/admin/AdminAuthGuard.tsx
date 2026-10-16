@@ -40,6 +40,16 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
         body: JSON.stringify({ passcode }),
       });
       if (res.ok) {
+        // Confirm the browser actually stored the session cookie before opening the panel.
+        const check = (await fetch("/api/admin/session", { cache: "no-store" }).then((r) => r.json())) as {
+          authenticated?: boolean;
+        };
+        if (!check.authenticated) {
+          setErrorMsg(
+            "Şifre doğru ancak tarayıcı oturum çerezini kaydetmedi. Çerezlerin açık olduğundan ve sitenin tek bir adresten (www'li ya da www'siz) açıldığından emin olun."
+          );
+          return;
+        }
         setPasscode("");
         setIsAuthenticated(true);
         return;

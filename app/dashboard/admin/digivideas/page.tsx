@@ -46,12 +46,21 @@ import {
   MapPinned,
   Megaphone,
   MessageCircle,
+  Users,
+  Wallet,
+  CalendarDays,
+  FileSignature,
 } from "lucide-react";
 import { AdminAuthGuard, adminLogout } from "@/components/admin/AdminAuthGuard";
 import { useAdminCMSStore, uploadImages } from "@/lib/store/admin-cms-store";
 import { AnalyticsDashboard } from "@/components/admin/analytics/AnalyticsDashboard";
 import { LeadFinder } from "@/components/admin/leads/LeadFinder";
 import { PromoManager } from "@/components/admin/promos/PromoManager";
+import { CrmProvider } from "@/components/admin/crm/CrmProvider";
+import { ClientsPanel } from "@/components/admin/crm/ClientsPanel";
+import { ProposalsPanel } from "@/components/admin/crm/ProposalsPanel";
+import { PaymentsPanel } from "@/components/admin/crm/PaymentsPanel";
+import { CalendarPanel } from "@/components/admin/crm/CalendarPanel";
 import { toWhatsAppDigits } from "@/lib/utils/sanitize";
 import {
   ServiceItem,
@@ -66,6 +75,10 @@ import { slugify } from "@/lib/utils/slugify";
 type ActiveTab =
   | "overview"
   | "analytics"
+  | "crmClients"
+  | "proposals"
+  | "payments"
+  | "calendar"
   | "leads"
   | "promos"
   | "services"
@@ -76,7 +89,19 @@ type ActiveTab =
   | "inquiries"
   | "settings";
 
+// The CMS store must only mount after login: AdminDashboard is rendered inside the guard,
+// so its data requests are made with a valid session.
 export default function AdminDashboardPage() {
+  return (
+    <AdminAuthGuard>
+      <CrmProvider>
+        <AdminDashboard />
+      </CrmProvider>
+    </AdminAuthGuard>
+  );
+}
+
+function AdminDashboard() {
   const {
     services,
     customers,
@@ -331,7 +356,7 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <AdminAuthGuard>
+    <>
       <div className="min-h-screen bg-[#09090B] text-foreground flex flex-col antialiased selection:bg-brand-500 selection:text-slate-950 font-sans">
         {/* Toast Notification Alert */}
         {successToast && (
@@ -431,6 +456,54 @@ export default function AdminDashboardPage() {
               >
                 <BarChart3 className="w-4 h-4 flex-shrink-0" />
                 <span>Site Analizi</span>
+              </button>
+
+              <div className="hidden md:block px-3 pt-4 pb-1 text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-wider">
+                Ajans Yönetimi
+              </div>
+
+              <button
+                onClick={() => setActiveTab("crmClients")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "crmClients"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <Users className="w-4 h-4 flex-shrink-0" />
+                <span>Müşteri Takibi</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("proposals")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "proposals"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <FileSignature className="w-4 h-4 flex-shrink-0" />
+                <span>Teklifler</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("payments")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "payments"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <Wallet className="w-4 h-4 flex-shrink-0" />
+                <span>Ödemeler</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("calendar")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "calendar"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <CalendarDays className="w-4 h-4 flex-shrink-0" />
+                <span>Takvim</span>
               </button>
 
               <button
@@ -681,6 +754,11 @@ export default function AdminDashboardPage() {
             )}
 
             {activeTab === "analytics" && <AnalyticsDashboard />}
+
+            {activeTab === "crmClients" && <ClientsPanel />}
+            {activeTab === "proposals" && <ProposalsPanel />}
+            {activeTab === "payments" && <PaymentsPanel />}
+            {activeTab === "calendar" && <CalendarPanel />}
 
             {activeTab === "leads" && <LeadFinder />}
 
@@ -2306,6 +2384,6 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
-    </AdminAuthGuard>
+    </>
   );
 }

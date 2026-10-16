@@ -147,3 +147,19 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Printable documents (proposal PDF export): white paper, no app chrome */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  .print-exact {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
