@@ -41,7 +41,8 @@ const nextConfig = {
   },
   async headers() {
     return [
-      { source: "/:path*", headers: securityHeaders },
+      // Proposal PDFs set their own headers: the site CSP (object-src 'none') would block the browser PDF viewer
+      { source: "/((?!api/admin/crm/proposal-files/).*)", headers: securityHeaders },
       {
         source: "/dashboard/:path*",
         headers: [
