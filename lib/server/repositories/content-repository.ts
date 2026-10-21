@@ -28,6 +28,11 @@ function withDefaults(stored: Partial<ContentSnapshot>): ContentSnapshot {
     tags: stored.tags ?? defaultContent.tags,
     faqs: stored.faqs ?? defaultContent.faqs,
     promos: stored.promos ?? defaultContent.promos,
+    // Every legal page must exist; pages added in later versions get their default text
+    legalPages: [
+      ...(stored.legalPages ?? []),
+      ...defaultContent.legalPages.filter((page) => !(stored.legalPages ?? []).some((saved) => saved.slug === page.slug)),
+    ],
     narrative: { ...defaultContent.narrative, ...(stored.narrative ?? {}) },
   };
 }

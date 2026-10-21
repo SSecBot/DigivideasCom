@@ -233,7 +233,27 @@ Aktarım öncesinde veriler bilgisayarınıza indirilir ve sunucuda yedek alın�
 
 ---
 
-## ❓ 7. Sıkça Sorulan Sorular (SSS)
+## 💳 7. Online Ödeme (iyzico) ve Sipariş Linkleri
+
+### Nasıl çalışır?
+1. Panelde **Siparişler & Ödeme** → *Yeni sipariş* (ya da Gelen Talepler / onaylı Teklif / Ödemeler ekranındaki **Ödeme linki** düğmesi).
+2. **Kaydet ve linki e-postayla gönder**: müşteriye, panelde ayarladığınız e-posta hesabından kişiye özel, süreli ve tahmin edilemez bir link gider (`/odeme/...`).
+3. Müşteri linkte fatura bilgilerini girer, Mesafeli Satış Sözleşmesi'ni onaylar ve **iyzico ile Öde**'ye basar; kart bilgileri iyzico'nun güvenli sayfasında alınır.
+4. Ödeme sonucu iyzico'dan doğrulanınca sipariş **Ödendi** olur, Ödemeler sayfasına işlenir, müşteriye onay ve size bildirim e-postası gider.
+
+### Kurulum
+- Sunucu `.env`: `IYZICO_API_KEY`, `IYZICO_SECRET_KEY`, `IYZICO_MODE=sandbox` (test) → testler bitince `IYZICO_MODE=live`.
+- `NEXT_PUBLIC_SITE_URL` canlı adres ve **https** olmalı (iyzico dönüş adresi: `https://alanadiniz.com/api/odeme/iyzico-callback`).
+- Panel → Siparişler → **E-posta ayarları**: SMTP bilgileri (Gmail için "Uygulama şifresi") → *Test gönder*.
+- Panel → **Yasal Sayfalar**: firma unvanı, adres, vergi bilgileri; sözleşme metinlerini gözden geçirin (iyzico başvurusunda bu sayfalar ve footer'daki logo bandı istenir).
+
+### Notlar
+- İade ve iptal işlemleri iyzico panelinden yapılır; sipariş detayında iyzico ödeme numarası görünür.
+- Sözleşme metinleri başlangıç taslağıdır; yayına almadan önce bir hukukçuya kontrol ettirin.
+
+---
+
+## ❓ 8. Sıkça Sorulan Sorular (SSS)
 
 ### S: En ucuz ve en sorunsuz yöntem hangisidir?
 **C:** Site artık verilerini sunucuda sakladığı için kalıcı diski olan bir **VPS** (Yöntem 3) veya **Node.js destekli cPanel** önerilir. Vercel ancak veri katmanı bir veritabanına taşındıktan sonra kullanılabilir (bkz. Bölüm 5).

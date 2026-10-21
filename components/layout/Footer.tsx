@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCMSStore } from "@/lib/store/cms-store";
 import { safeHref, toWhatsAppDigits } from "@/lib/utils/sanitize";
+import { PaymentLogos } from "@/components/payment/PaymentLogos";
 
 export function Footer() {
   const { narrative, services } = useCMSStore();
@@ -179,17 +180,29 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom Copyright */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-500 gap-4 text-center sm:text-left">
-          <p>© {new Date().getFullYear()} digivideas. Tüm hakları saklıdır. İzmir, Torbalı, Türkiye.</p>
-          <div className="flex items-center gap-6">
-            <Link href="/kvkk" className="hover:text-zinc-300 transition-colors">
-              Gizlilik Politikası
+        {/* Payment logos (required by iyzico) + legal pages */}
+        <div className="pt-8 pb-6 border-b border-white/10 flex flex-col lg:flex-row items-center justify-between gap-5">
+          <nav aria-label="Yasal sayfalar" className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 text-xs text-zinc-400">
+            <Link href="/mesafeli-satis-sozlesmesi" className="hover:text-brand-400 transition-colors">
+              Mesafeli Satış Sözleşmesi
             </Link>
-            <Link href="/kvkk" className="hover:text-zinc-300 transition-colors">
+            <Link href="/teslimat-ve-iade" className="hover:text-brand-400 transition-colors">
+              Teslimat ve İade Şartları
+            </Link>
+            <Link href="/gizlilik-sozlesmesi" className="hover:text-brand-400 transition-colors">
+              Gizlilik Sözleşmesi
+            </Link>
+            <Link href="/kvkk" className="hover:text-brand-400 transition-colors">
               KVKK Aydınlatma
             </Link>
-          </div>
+          </nav>
+          <PaymentLogos compact />
+        </div>
+
+        {/* Bottom Copyright */}
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-500 gap-4 text-center sm:text-left">
+          <p>© {new Date().getFullYear()} {narrative.companyTitle || "digivideas"}. Tüm hakları saklıdır. İzmir, Torbalı, Türkiye.</p>
+          <p className="text-zinc-600">Ödemeler iyzico güvencesiyle alınır; kart bilgileriniz sitemizde saklanmaz.</p>
         </div>
       </div>
     </footer>

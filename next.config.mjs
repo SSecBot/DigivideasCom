@@ -53,6 +53,15 @@ const nextConfig = {
         ],
       },
       { source: "/api/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex" }] },
+      {
+        // Private payment links: never indexed, cached or leaked through the Referer header
+        source: "/odeme/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Cache-Control", value: "no-store" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
     ];
   },
 };

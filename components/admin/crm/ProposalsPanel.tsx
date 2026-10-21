@@ -7,6 +7,8 @@ import { computeProposalTotals, formatTL, isItemIncluded, itemTotal } from "@/li
 import { useCrm } from "@/components/admin/crm/CrmProvider";
 import { ProposalEditor } from "@/components/admin/crm/ProposalEditor";
 import { ProposalAttachments } from "@/components/admin/crm/ProposalAttachments";
+import { requestNewOrder } from "@/lib/orders/prefill";
+import { ShoppingBag } from "lucide-react";
 
 const printUrl = (proposal: Proposal) => `/dashboard/admin/digivideas/teklif/${encodeURIComponent(proposal.id)}`;
 import {
@@ -308,6 +310,31 @@ export function ProposalsPanel() {
                   >
                     <FileDown className="w-3.5 h-3.5" /> PDF
                   </a>
+                  {proposal.status === "onaylandi" && (
+                    <button
+                      onClick={() =>
+                        requestNewOrder({
+                          title: `${proposal.number} – ${proposal.title}`,
+                          customer: { fullName: proposal.contactName || proposal.clientName, email: proposal.email, phone: proposal.phone, company: proposal.clientName },
+                          // The proposal discount is applied to each unit price; VAT stays the same
+                          items: proposal.items
+                            .filter((item) => !item.optional || item.selected)
+                            .map((item) => ({
+                              name: item.service,
+                              description: item.description,
+                              quantity: item.quantity,
+                              unitPrice: Math.round(item.unitPrice * (1 - proposal.discountRate / 100) * 100) / 100,
+                            })),
+                          vatRate: proposal.vatRate,
+                          clientId: proposal.clientId,
+                          source: { type: "teklif", id: proposal.id, label: `Teklif ${proposal.number}` },
+                        })
+                      }
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-xs text-brand-200"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" /> Ödeme linki
+                    </button>
+                  )}
                   {open && (
                     <>
                       <GhostButton onClick={() => setEditing(proposal)}>

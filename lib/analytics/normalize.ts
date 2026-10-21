@@ -35,7 +35,8 @@ export function normalizeCollectPayload(body: unknown, context: NormalizeContext
   if (!ID_PATTERN.test(String(raw.visitorId)) || !ID_PATTERN.test(String(raw.sessionId))) return null;
 
   const path = text(raw.path, 300);
-  if (!path || !path.startsWith("/") || path.startsWith("//") || path.startsWith("/dashboard")) return null;
+  // Admin pages and private payment links (the token is in the path) are never recorded
+  if (!path || !path.startsWith("/") || path.startsWith("//") || path.startsWith("/dashboard") || path.startsWith("/odeme")) return null;
 
   const name = text(raw.name, 40);
   if (raw.type === "event" && (!name || !EVENT_NAME_PATTERN.test(name))) return null;
