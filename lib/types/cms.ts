@@ -116,6 +116,26 @@ export interface SiteNarrative {
   nasilBasladi: string;
   misyonumuz: string;
   vizyonumuz: string;
+  // Yasal / şirket bilgileri (sözleşmelerde {{yer_tutucu}} olarak kullanılır)
+  companyTitle?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  taxOffice?: string;
+  taxNumber?: string;
+  mersisNumber?: string;
+  kepAddress?: string;
+}
+
+export type LegalPageSlug = "teslimat-ve-iade" | "gizlilik-sozlesmesi" | "mesafeli-satis-sozlesmesi";
+
+/** Admin-editable legal page (Markdown with {{placeholders}}). */
+export interface LegalPage {
+  id: string;
+  slug: LegalPageSlug;
+  title: string;
+  content: string;
+  updatedAt: string;
 }
 
 export interface ContactInquiry {
@@ -154,6 +174,7 @@ export interface ContentSnapshot {
   tags: TagItem[];
   faqs: FAQItem[];
   promos: PromoItem[];
+  legalPages: LegalPage[];
   narrative: SiteNarrative;
 }
 

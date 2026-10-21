@@ -589,6 +589,8 @@ export const initialPromos: PromoItem[] = [
   },
 ];
 
+import { DEFAULT_LEGAL_PAGES } from "@/lib/legal/templates";
+
 export const defaultContentSnapshot: ContentSnapshot = {
   services: initialServices,
   customers: initialCustomers,
@@ -596,5 +598,6 @@ export const defaultContentSnapshot: ContentSnapshot = {
   tags: initialTags,
   faqs: initialFAQs,
   promos: initialPromos,
+  legalPages: DEFAULT_LEGAL_PAGES,
   narrative: initialSiteNarrative,
 };

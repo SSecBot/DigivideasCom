@@ -5,6 +5,8 @@ import {
   ContentStatus,
   CustomerItem,
   FAQItem,
+  LegalPage,
+  LegalPageSlug,
   MetricItem,
   PromoItem,
   ServiceItem,
@@ -239,6 +241,21 @@ function normalizePromo(input: unknown, index: number): PromoItem {
   };
 }
 
+const LEGAL_SLUGS: LegalPageSlug[] = ["teslimat-ve-iade", "gizlilik-sozlesmesi", "mesafeli-satis-sozlesmesi"];
+
+function normalizeLegalPage(input: unknown): LegalPage {
+  const raw = asRecord(input);
+  const slug = raw.slug as LegalPageSlug;
+  if (!LEGAL_SLUGS.includes(slug)) throw new ContentValidationError("Bilinmeyen yasal sayfa");
+  return {
+    id: id(raw.id, "legal"),
+    slug,
+    title: requiredText(raw.title, SHORT, "Sayfa başlığı"),
+    content: requiredText(raw.content, LONG * 2, "Sayfa içeriği"),
+    updatedAt: isoDate(raw.updatedAt),
+  };
+}
+
 export function normalizeNarrative(input: unknown): SiteNarrative {
   const raw = asRecord(input);
   return {
@@ -258,6 +275,14 @@ export function normalizeNarrative(input: unknown): SiteNarrative {
     nasilBasladi: clampString(raw.nasilBasladi, MEDIUM * 5),
     misyonumuz: clampString(raw.misyonumuz, MEDIUM * 5),
     vizyonumuz: clampString(raw.vizyonumuz, MEDIUM * 5),
+    companyTitle: clampString(raw.companyTitle, SHORT).trim() || undefined,
+    companyAddress: clampString(raw.companyAddress, 400).trim() || undefined,
+    companyPhone: clampString(raw.companyPhone, 40).trim() || undefined,
+    companyEmail: clampString(raw.companyEmail, 200).trim() || undefined,
+    taxOffice: clampString(raw.taxOffice, 120).trim() || undefined,
+    taxNumber: clampString(raw.taxNumber, 20).replace(/[^0-9]/g, "") || undefined,
+    mersisNumber: clampString(raw.mersisNumber, 20).replace(/[^0-9]/g, "") || undefined,
+    kepAddress: clampString(raw.kepAddress, 200).trim() || undefined,
   };
 }
 
@@ -270,6 +295,7 @@ const collectionNormalizers: {
   tags: normalizeTag,
   faqs: normalizeFAQ,
   promos: normalizePromo,
+  legalPages: normalizeLegalPage,
 };
 
 export function isContentCollection(value: string): value is ContentCollection {

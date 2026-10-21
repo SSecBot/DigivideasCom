@@ -15,9 +15,9 @@ export function AnalyticsTracker() {
   const accumulated = useRef(0);
   const currentPath = useRef<string | null>(null);
 
-  // Page views + time-on-page per route
+  // Page views + time-on-page per route (private payment links are never tracked)
   useEffect(() => {
-    if (!pathname) return;
+    if (!pathname || pathname.startsWith("/odeme")) return;
 
     const flush = () => {
       if (!currentPath.current) return;

@@ -52,6 +52,8 @@ import {
   FileSignature,
   DatabaseBackup,
   History,
+  ShoppingBag,
+  Scale,
 } from "lucide-react";
 import { AdminAuthGuard, adminLogout } from "@/components/admin/AdminAuthGuard";
 import { useAdminCMSStore, uploadImages } from "@/lib/store/admin-cms-store";
@@ -62,6 +64,9 @@ import { CrmProvider, useCrm } from "@/components/admin/crm/CrmProvider";
 import { BackupPanel } from "@/components/admin/backups/BackupPanel";
 import { useLegacyData } from "@/components/admin/backups/LegacyImport";
 import { legacySummary } from "@/lib/admin/legacy-import";
+import { OrdersPanel } from "@/components/admin/orders/OrdersPanel";
+import { LegalPagesManager } from "@/components/admin/legal/LegalPagesManager";
+import { NEW_ORDER_EVENT, OrderPrefill, requestNewOrder } from "@/lib/orders/prefill";
 import { ClientsPanel } from "@/components/admin/crm/ClientsPanel";
 import { ProposalsPanel } from "@/components/admin/crm/ProposalsPanel";
 import { PaymentsPanel } from "@/components/admin/crm/PaymentsPanel";
@@ -86,6 +91,8 @@ type ActiveTab =
   | "proposals"
   | "payments"
   | "calendar"
+  | "orders"
+  | "legal"
   | "leads"
   | "promos"
   | "services"
@@ -135,11 +142,24 @@ function AdminDashboard() {
     saveFAQ,
     deleteFAQ,
     saveNarrative,
+    saveLegalPage,
+    legalPages,
     resetToFactoryDefaults,
     reload,
   } = useAdminCMSStore();
   const { reload: reloadCrm } = useCrm();
   const { legacy, importedAt: legacyImportedAt } = useLegacyData();
+
+  // "Ödeme linki" buttons on other screens open the order editor pre-filled
+  const [orderPrefill, setOrderPrefill] = useState<OrderPrefill | null>(null);
+  useEffect(() => {
+    const onNewOrder = (event: Event) => {
+      setOrderPrefill((event as CustomEvent<OrderPrefill>).detail);
+      setActiveTab("orders");
+    };
+    window.addEventListener(NEW_ORDER_EVENT, onNewOrder);
+    return () => window.removeEventListener(NEW_ORDER_EVENT, onNewOrder);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [successToast, setSuccessToast] = useState("");
@@ -543,6 +563,17 @@ function AdminDashboard() {
               </button>
 
               <button
+                onClick={() => setActiveTab("orders")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "orders"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <ShoppingBag className="w-4 h-4 flex-shrink-0" />
+                <span>Siparişler & Ödeme</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab("leads")}
                 className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "leads"
                     ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
@@ -669,6 +700,17 @@ function AdminDashboard() {
               >
                 <Settings className="w-4 h-4 flex-shrink-0" />
                 <span>Site Ayarları & Logolar</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("legal")}
+                className={`md:w-full flex-shrink-0 whitespace-nowrap flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${activeTab === "legal"
+                    ? "bg-brand-500 text-slate-950 font-bold shadow-glow-orange"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+              >
+                <Scale className="w-4 h-4 flex-shrink-0" />
+                <span>Yasal Sayfalar</span>
               </button>
 
               <button
@@ -818,6 +860,16 @@ function AdminDashboard() {
             {activeTab === "proposals" && <ProposalsPanel />}
             {activeTab === "payments" && <PaymentsPanel />}
             {activeTab === "calendar" && <CalendarPanel />}
+            {activeTab === "orders" && <OrdersPanel prefill={orderPrefill} onPrefillUsed={() => setOrderPrefill(null)} />}
+            {activeTab === "legal" && (
+              <LegalPagesManager
+                legalPages={legalPages}
+                narrative={narrative}
+                onSavePage={saveLegalPage}
+                onSaveCompany={(fields) => saveNarrative(fields)}
+                onToast={triggerToast}
+              />
+            )}
 
             {activeTab === "leads" && <LeadFinder />}
 
@@ -1347,6 +1399,19 @@ function AdminDashboard() {
                           >
                             <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                           </a>
+                          <button
+                            onClick={() =>
+                              requestNewOrder({
+                                title: inq.service,
+                                customer: { fullName: inq.name, email: inq.email, phone: inq.phone, company: inq.company },
+                                items: [{ name: inq.service, description: "", quantity: 1, unitPrice: 0 }],
+                                source: { type: "talep", id: inq.id, label: `Gelen talep: ${inq.name}` },
+                              })
+                            }
+                            className="inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-200"
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5" /> Sipariş / ödeme linki
+                          </button>
                           <button
                             onClick={() => {
                               if (confirm(`${inq.name} adlı kişinin talebi silinsin mi?`)) {

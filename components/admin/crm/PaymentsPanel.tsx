@@ -5,6 +5,8 @@ import { CheckCircle2, Edit2, Plus, Repeat, RotateCcw, Trash2, Wallet } from "lu
 import { PAYMENT_METHOD_LABELS, Payment, PaymentMethod, PaymentState } from "@/lib/crm/types";
 import { formatTL, paymentState, summarizePayments } from "@/lib/crm/calc";
 import { useCrm } from "@/components/admin/crm/CrmProvider";
+import { requestNewOrder } from "@/lib/orders/prefill";
+import { ShoppingBag } from "lucide-react";
 import {
   CrmErrorBanner,
   EmptyState,
@@ -164,6 +166,27 @@ export function PaymentsPanel() {
                       className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-xs text-emerald-300"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" /> Ödendi
+                    </button>
+                  )}
+                  {state !== "odendi" && (
+                    <button
+                      onClick={() => {
+                        const client = clients.find((c) => c.id === payment.clientId);
+                        requestNewOrder({
+                          title: payment.description,
+                          customer: { fullName: client?.contactName || payment.clientName, email: client?.email ?? "", phone: client?.phone ?? "", company: client?.name },
+                          // The CRM amount is what the customer pays, so it is charged as-is (KDV %0 on top)
+                          items: [{ name: payment.description, description: "", quantity: 1, unitPrice: payment.amount }],
+                          vatRate: 0,
+                          clientId: payment.clientId,
+                          crmPaymentId: payment.id,
+                          source: { type: "odeme", id: payment.id, label: `Ödeme kaydı: ${payment.clientName}` },
+                        });
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-xs text-brand-200"
+                      title="iyzico ile online ödeme linki oluştur"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" /> Ödeme linki
                     </button>
                   )}
                   <GhostButton onClick={() => setEditing({ ...payment })} aria-label="Ödemeyi düzenle">

@@ -8,6 +8,7 @@ import {
   ContentSnapshot,
   CustomerItem,
   FAQItem,
+  LegalPage,
   PromoItem,
   ServiceItem,
   SiteNarrative,
@@ -341,6 +342,17 @@ export function useAdminCMSStore() {
   const deletePromo = (id: string) =>
     persistCollection("promos", contentRef.current.promos.filter((p) => p.id !== id));
 
+  // --- LEGAL PAGES (Teslimat/İade, Gizlilik, Mesafeli Satış) ---
+  const saveLegalPage = async (page: Pick<LegalPage, "slug" | "title" | "content">) => {
+    const now = new Date().toISOString();
+    const pages = contentRef.current.legalPages;
+    const exists = pages.some((item) => item.slug === page.slug);
+    const updated = exists
+      ? pages.map((item) => (item.slug === page.slug ? { ...item, title: page.title, content: page.content, updatedAt: now } : item))
+      : [...pages, { id: `legal-${page.slug}`, ...page, updatedAt: now }];
+    return persistCollection("legalPages", updated);
+  };
+
   // --- NARRATIVE ---
   const saveNarrative = async (patch: Partial<SiteNarrative>): Promise<boolean> => {
     if (!loadedRef.current) {
@@ -400,6 +412,7 @@ export function useAdminCMSStore() {
     deleteFAQ,
     savePromo,
     deletePromo,
+    saveLegalPage,
     saveNarrative,
     deleteInquiry,
     resetToFactoryDefaults,
